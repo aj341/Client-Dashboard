@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Bees — Dripify Sequence Tree</title>
+<style>
+:root {
+  --bg: #faf9fe;
+  --node-bg: #fff;
+  --node-border: #e8e5f0;
+  --node-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  --line: #d4d2de;
+  --text: #1a1a2e;
+  --muted: #6b6b80;
+  --purple: #7c3aed;
+  --purple-lt: #f0e7ff;
+  --green: #16a34a;
+  --green-lt: #dcfce7;
+  --red: #ef4444;
+  --blue: #3b82f6;
+  --gray-lt: #f3f4f6;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:var(--text); }
+
+/* Header */
+.hdr { background:#fff; border-bottom:1px solid var(--node-border); padding:16px 24px; display:flex; align-items:center; gap:24px; flex-wrap:wrap; position:sticky; top:0; z-index:50; }
+.hdr h1 { font-size:20px; color:var(--purple); font-weight:700; }
+.tabs { display:flex; gap:4px; }
+.tab { padding:8px 16px; border-radius:8px; border:1px solid var(--node-border); background:#fff; color:var(--muted); cursor:pointer; font-size:13px; font-weight:600; transition:all .15s; }
+.tab:hover { background:var(--purple-lt); }
+.tab.on { background:var(--purple); color:#fff; border-color:var(--purple); }
+.sender-tog { display:flex; gap:0; margin-left:auto; }
+.sbtn { padding:8px 16px; border:1px solid var(--node-border); background:#fff; color:var(--muted); cursor:pointer; font-size:13px; font-weight:500; transition:all .15s; }
+.sbtn:first-child { border-radius:8px 0 0 8px; }
+.sbtn:last-child { border-radius:0 8px 8px 0; border-left:none; }
+.sbtn.on { background:var(--purple); color:#fff; border-color:var(--purple); }
+
+/* Tree container */
+.tree-wrap { overflow:auto; padding:40px 20px 80px; min-height:calc(100vh - 60px); }
+.tree-root { display:flex; flex-direction:column; align-items:center; min-width:fit-content; margin:0 auto; }
+
+/* Vertical line */
+.vl { width:2px; height:24px; background:var(--line); flex-shrink:0; }
+.vl.short { height:14px; }
+
+/* Action node */
+.node { display:flex; align-items:center; gap:10px; padding:10px 18px; background:var(--node-bg); border:1px solid var(--node-border); border-radius:10px; box-shadow:var(--node-shadow); white-space:nowrap; position:relative; min-width:140px; }
+.node.clickable { cursor:pointer; }
+.node.clickable:hover { border-color:var(--purple); box-shadow:0 2px 12px rgba(124,58,237,0.15); }
+.node-icon { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.node-label { font-size:13px; font-weight:500; color:var(--text); }
+.node .info-dot { position:absolute; top:4px; right:6px; width:6px; height:6px; border-radius:50%; background:var(--purple); }
+
+/* Icon colors */
+.ic-like .node-icon, .ic-follow .node-icon, .ic-view .node-icon { background:var(--gray-lt); }
+.ic-msg .node-icon { background:var(--green-lt); color:var(--green); }
+.ic-invite .node-icon { background:var(--purple-lt); color:var(--purple); }
+.ic-inmail .node-icon { background:var(--purple-lt); color:var(--purple); }
+.ic-email .node-icon { background:var(--purple-lt); color:var(--purple); }
+.ic-endorse .node-icon { background:var(--gray-lt); }
+.ic-find .node-icon { background:var(--purple-lt); color:var(--purple); }
+.ic-end .node-icon { background:var(--gray-lt); color:var(--muted); }
+
+/* Delay badge */
+.delay { display:flex; align-items:center; gap:6px; padding:4px 14px; border-radius:20px; background:var(--purple-lt); color:var(--purple); font-size:12px; font-weight:600; }
+.delay-wrap { display:flex; flex-direction:column; align-items:center; }
+
+/* Condition node */
+.cond-node { display:flex; align-items:center; gap:8px; padding:10px 20px; background:var(--purple-lt); border:1.5px solid rgba(124,58,237,0.25); border-radius:10px; font-size:13px; font-weight:600; color:var(--purple); white-space:nowrap; }
+.cond-icon { font-size:16px; }
+
+/* Branch */
+.branch-arms { display:flex; position:relative; }
+.branch-arm { flex:1; display:flex; flex-direction:column; align-items:center; position:relative; padding:28px 8px 0; min-width:160px; }
+/* Horizontal bar: each arm draws its half */
+.branch-arm::after { content:''; position:absolute; top:0; height:2px; background:var(--line); }
+.branch-arm:first-child::after { left:50%; right:0; }
+.branch-arm:last-child::after { left:0; right:50%; }
+/* Vertical drop from h-bar to label */
+.branch-arm::before { content:''; position:absolute; top:0; left:50%; transform:translateX(-50%); width:2px; height:28px; background:var(--line); }
+/* Branch label */
+.blabel { font-size:11px; font-weight:700; margin-bottom:6px; }
+.blabel.red { color:var(--red); }
+.blabel.green { color:var(--green); }
+
+/* Sequence column inside arm */
+.arm-seq { display:flex; flex-direction:column; align-items:center; }
+
+/* Modal */
+.modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; z-index:100; justify-content:center; align-items:center; backdrop-filter:blur(2px); }
+.modal-bg.show { display:flex; }
+.modal { background:#fff; border-radius:16px; max-width:560px; width:92%; max-height:85vh; overflow-y:auto; padding:28px; box-shadow:0 20px 60px rgba(0,0,0,0.25); }
+.modal-title { font-size:16px; font-weight:700; color:var(--purple); margin-bottom:4px; }
+.modal-sub { font-size:13px; color:var(--muted); margin-bottom:16px; }
+.modal-subject { background:var(--purple-lt); border-radius:8px; padding:8px 14px; font-size:13px; margin-bottom:12px; }
+.modal-subject strong { color:var(--purple); }
+.modal-body { background:var(--bg); border:1px solid var(--node-border); border-radius:10px; padding:20px; font-size:14px; line-height:1.7; white-space:pre-wrap; color:var(--text); position:relative; }
+.modal-copy { position:absolute; top:8px; right:8px; background:var(--purple); color:#fff; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; }
+.modal-copy:hover { background:#6d28d9; }
+.modal-copy.done { background:var(--green); }
+.modal-close { display:block; margin:16px auto 0; padding:8px 28px; border-radius:8px; border:1px solid var(--node-border); background:#fff; color:var(--muted); cursor:pointer; font-size:13px; }
+.modal-close:hover { background:var(--bg); }
+
+/* Zoom controls */
+.zoom { position:fixed; bottom:20px; right:20px; display:flex; gap:4px; z-index:40; }
+.zoom button { width:36px; height:36px; border-radius:8px; border:1px solid var(--node-border); background:#fff; color:var(--text); cursor:pointer; font-size:16px; box-shadow:var(--node-shadow); }
+.zoom button:hover { background:var(--purple-lt); }
+
+@media(max-width:700px) {
+  .hdr { flex-direction:column; align-items:flex-start; gap:12px; }
+  .sender-tog { margin-left:0; }
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>Design Bees</h1>
+  <div class="tabs">
+    <button class="tab on" onclick="setICP('icp1',this)">ICP 1 — Marketing Hire</button>
+    <button class="tab" onclick="setICP('icp2',this)">ICP 2 — Founder</button>
+    <button class="tab" onclick="setICP('icp3',this)">ICP 3 — Agency</button>
+  </div>
+  <div class="sender-tog">
+    <button class="sbtn on" onclick="setSender('aj')">AJ</button>
+    <button class="sbtn" onclick="setSender('nathan')">Nathan</button>
+  </div>
+</div>
+
+<div class="tree-wrap" id="treeWrap">
+  <div class="tree-root" id="treeRoot"></div>
+</div>
+
+<div class="modal-bg" id="modalBg" onclick="hideModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="mTitle"></div>
+    <div class="modal-sub" id="mSub"></div>
+    <div id="mSubject" class="modal-subject" style="display:none"></div>
+    <div class="modal-body" id="mBody">
+      <button class="modal-copy" onclick="copyMsg(this)">Copy</button>
+      <div id="mText"></div>
+    </div>
+    <button class="modal-close" onclick="hideModal()">Close</button>
+  </div>
+</div>
+
+<div class="zoom">
+  <button onclick="zoom(-0.1)" title="Zoom out">−</button>
+  <button onclick="zoom(0.1)" title="Zoom in">+</button>
+  <button onclick="zoomReset()" title="Reset">⟲</button>
+</div>
+
+<script>
+// ── Icons ──
+const IC = {
+  like:'👍', follow:'👤', invite:'📩', msg:'💬', inmail:'✉️',
+  email:'📧', view:'👁️', endorse:'☑️', find:'🔍', end:'⏹️'
+};
+
+// ── Messages ──
+const M = {
+icp1: {
+  conn: {
+    aj: `Hi %%first_name%% — no in-house designer at %%company%%? Most marketing teams your size are buried in Canva and chasing freelancers. We fix that for a flat monthly fee. Worth a look?`,
+    nathan: `Hi %%first_name%% — if %%company%%'s marketing team is anything like most, design is either Canva or a freelancer who's hard to pin down. We sort that out for a flat monthly fee. Worth a look?`
+  },
+  m1: {
+    aj: `%%first_name%% — quick one.\n\nWho's doing design at %%company%% right now? Canva? A freelancer who takes 3 days to reply? Nobody?\n\nMarketing managers your size were spending 10+ hours a week on it — not their job. We give them a dedicated designer for a flat monthly fee. Designs back same day in most cases.\n\nWant me to send the details?`,
+    nathan: `%%first_name%% — quick one from me.\n\nWho's handling design at %%company%% right now? Canva? A freelancer who takes a few days to get back to you? Nobody?\n\nMarketing managers your size were spending 10+ hours a week on it — not their job. A dedicated designer on a flat monthly fee changes that. Designs back same day in most cases.\n\nHappy to send through the details if it sounds relevant?`
+  },
+  m2: {
+    aj: `Be honest %%first_name%% — when did you last look at %%company%%'s marketing collateral and think 'that actually looks sharp'?\n\nMelissa, Head of Marketing at an IT company similar to %%company%%, had a 6-week design backlog when she came to us. Cleared it in her first month. Her words: "It feels good to know I have a trusted, affordable design partner."\n\nFree 10-day trial — no commitment. Want me to send through the details?`,
+    nathan: `Be honest %%first_name%% — when did you last look at %%company%%'s collateral and think 'that actually reflects how good we are'?\n\nMelissa, Head of Marketing at an IT company similar to %%company%%, had a 6-week design backlog when she came to us. Cleared it in her first month. Her words: "It feels good to know I have a trusted, affordable design partner."\n\nFree 10-day trial — no commitment. Happy to send through the details if you'd like to take a look?`
+  },
+  email: {
+    aj: `Hi %%first_name%%,\n\nIf the design situation at %%company%% is anything like most marketing teams your size — it's either Canva, a freelancer who takes days to reply, or both.\n\nMelissa, Head of Marketing at a similar IT company, had a 6-week backlog when she came to us. Cleared it in her first month. Dedicated designer, flat monthly fee from $995, no lock-in.\n\nWe run a free 10-day trial — if it's not right you walk away with 10 days of free design work.\n\nSee our plans: https://www.designbees.com.au/pricing-cards\nOr book 15 mins: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nAJ\nDesign Bees — designbees.com.au`,
+    nathan: `Hi %%first_name%%,\n\nIf the design situation at %%company%% is anything like most marketing teams your size — it's either Canva, a freelancer who's hard to pin down, or both.\n\nMelissa, Head of Marketing at a similar IT company, had a 6-week backlog when she came to us. Cleared it in her first month. Dedicated designer, flat monthly fee from $995, no lock-in.\n\nWe run a free 10-day trial — if it's not right, you walk away with 10 days of free design work.\n\nSee our plans: https://www.designbees.com.au/pricing-cards\nOr book a 15-min chat: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nNathan\nDesign Bees — designbees.com.au`,
+    sAj: 'Still running on Canva at %%company%%?',
+    sNa: 'Design still on your plate at %%company%%?'
+  },
+  exit: {
+    aj: `No stress %%first_name%% — I know the to-do list never gets shorter.\n\nIf there's ever a point where %%company%%'s design needs to look as good as the work you're actually doing — we're here: designbees.com.au/pricing-cards\n\nFree 10-day trial, no commitment. Good luck with everything.`,
+    nathan: `No stress %%first_name%% — I know the list never gets shorter.\n\nIf there's ever a point where %%company%%'s design needs to look as good as the work you're actually doing, we're here: designbees.com.au/pricing-cards\n\nFree 10-day trial, no commitment. Good luck with everything.`
+  },
+  inmail: {
+    aj: `Hi %%first_name%% — most marketing teams at companies like %%company%% are running on Canva and crossed fingers with freelancers. Sound familiar?\n\nMelissa at Generation-e was in the same spot — cleared a 6-week design backlog in her first month once she had a dedicated designer on a flat monthly fee.\n\nWe run a free 10-day trial — no contract, no risk. If it's not the right fit, you walk away with 10 days of free design work.\n\nWant me to send through the details?`,
+    nathan: `Hi %%first_name%% — if %%company%%'s marketing team is anything like most, design is either stuck in a Canva queue or waiting on a freelancer who's gone quiet.\n\nMelissa at Generation-e was in that exact spot — cleared a 6-week backlog in her first month once she had a dedicated designer on a flat monthly fee. No hiring, no contracts.\n\nWe run a free 10-day trial — if it's not the right fit, you walk away with 10 days of free design work. Happy to send through the details?`,
+    sAj: 'Still running on Canva?',
+    sNa: 'Design still on your plate?'
+  }
+},
+icp2: {
+  conn: {
+    aj: `Hi %%first_name%% — still doing your own design at %%company%%? Most founders at your stage are. Dedicated designer for $545/month, no contracts, 10-day trial. Worth a look?`,
+    nathan: `Hi %%first_name%% — still doing your own design at %%company%%? Most founders at your stage are. A dedicated designer for $545/month fixes that — no contracts, 10-day trial. Worth a look?`
+  },
+  m1: {
+    aj: `%%first_name%% — quick one.\n\nWho's doing design at %%company%% right now? Canva? A freelancer who takes days to reply? Still you?\n\nOne of the founders we work with was in the same spot. Now he just sends briefs — designs back same day. Dedicated designer, $545/month, no contracts.\n\nWant me to send the details?`,
+    nathan: `%%first_name%% — quick one.\n\nWho's doing design at %%company%% right now? Canva? A freelancer who takes days to reply? Still you?\n\nOne of the founders we work with was in the same spot — spending hours on it every week. Now he just sends briefs and gets designs back same day. $545/month, dedicated designer, no contracts.\n\nHappy to send through the details if it sounds relevant?`
+  },
+  m15: {
+    aj: `Saw you had a look %%first_name%% — no stress if the timing's off.\n\nQuick context: Sam at Blugibbon sent his first brief on a Monday, had a full rebrand concept back by Wednesday.\n\n10-day free trial, no commitment. Want me to send the details?`,
+    nathan: `Saw you had a look %%first_name%% — totally understand if it's not the right time.\n\nQuick context: Sam at Blugibbon was in the same spot. Sent his first brief on a Monday — full rebrand concept back by Wednesday.\n\nFree 10-day trial, no commitment. Happy to send through the details?`
+  },
+  m2: {
+    aj: `Be honest %%first_name%% — when did you last look at %%company%%'s website and think 'that actually looks sharp'?\n\nSam at Blugibbon sent his first brief on a Monday. Had a full rebrand concept back by Wednesday. His words: "It comes back looking better than anything I could have made myself."\n\n10-day free trial — no commitment. Want to see how it runs?`,
+    nathan: `Be honest %%first_name%% — when did you last look at %%company%%'s website and think 'that actually looks sharp'?\n\nSam at Blugibbon was spending hours in Canva trying to fix that. Sent his first brief on a Monday — had a full rebrand concept back by Wednesday. His words: "It comes back looking better than anything I could have made myself."\n\nFree 10-day trial, no commitment. Happy to send through the details?`
+  },
+  email: {
+    aj: `Hi %%first_name%%,\n\nIf you're still doing your own design work, you're spending hours on something that shouldn't be near a founder's to-do list.\n\nRecently we had a %%position%% from a %%industry%% business who was in the same spot — hours on Canva every week. Now he just sends briefs and gets designs back the same day. Dedicated designer, no re-briefs. All for just $545/month, with no lock-in contracts cancel at any time.\n\nFor the rest of March we are offering a free 10-day trial — if it's not right, you walk away with 4 hours of free design work.\n\nSee our plans: https://www.designbees.com.au/pricing-cards\nOr book a 15-min call: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nAJ\nDesign Bees — designbees.com.au`,
+    nathan: `Hi %%first_name%%,\n\nIf you're still doing your own design work, you're spending hours on something that shouldn't be near a founder's to-do list.\n\nSam at Blugibbon was in the same spot — hours on Canva every week. Now he just sends briefs and gets designs back same day. $545/month, dedicated designer, no contracts.\n\nFree 10-day trial — if it's not right, you walk away with 10 days of free design work.\n\nSee our plans: https://www.designbees.com.au/pricing-cards\nOr book a 15-min chat: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nNathan\nDesign Bees — designbees.com.au`,
+    sAj: 'Still doing your own design at %%company%%?',
+    sNa: 'Still doing your own design at %%company%%?'
+  },
+  exit: {
+    aj: `No stress %%first_name%% — timing isn't always right.\n\nIf there's ever a point where %%company%% needs to look as sharp as it actually is, we're here: designbees.com.au/pricing-cards\n\nFree 10-day trial, no commitment. Good luck with everything.`,
+    nathan: `No stress %%first_name%% — timing isn't always right.\n\nIf there's ever a point where %%company%% needs to look as sharp as it actually is, we're here: designbees.com.au/pricing-cards\n\nFree 10-day trial, no commitment. Good luck with everything.`
+  },
+  inmail: {
+    aj: `Hi %%first_name%%,\n\nIf you're still doing your own design work, you're spending hours on something that shouldn't be near a founder's to-do list.\n\nRecently we had a %%position%% from a %%industry%% business who was in the same spot — hours on Canva every week. Now he just sends briefs and gets designs back the same day. Dedicated designer, no re-briefs. All for just $545/month, with no lock-in contracts cancel at any time.\n\nFor the rest of March we are offering a free 10-day trial — if it's not right, you walk away with 4 hours of free design work.\n\nSee our plans: https://www.designbees.com.au/pricing-cards\nOr book a 15-min call: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nAJ\nDesign Bees — designbees.com.au`,
+    nathan: `Hi %%first_name%% — if you're still doing your own design work, you're spending time on something a founder shouldn't be near.\n\nSam at Blugibbon was in the same spot — spending hours on Canva every week. Now he just sends briefs and gets designs back same day. $545/month, dedicated designer, no contracts.\n\nHappy to send through the details if it's relevant?`,
+    sAj: 'Still on Canva?',
+    sNa: 'Still doing your own design?'
+  }
+},
+icp3: {
+  conn: {
+    aj: `Hi %%first_name%% — is design the thing stopping %%company%% from taking on more client work? We're the white-label design arm for agencies your size. Flat monthly fee, dedicated designer. Worth a look?`,
+    nathan: `Hi %%first_name%% — is design the bottleneck stopping %%company%% from taking on more clients? We're the white-label design arm for agencies your size — dedicated designer, flat monthly fee. Worth a look?`
+  },
+  m1: {
+    aj: `%%first_name%% — quick one.\n\nHow are you handling design production for your clients right now? In-house? A freelancer you re-brief every time? Outsourced overseas?\n\nMost agencies your size hit the same ceiling — more clients, same design bottleneck. Every new brief means re-briefing a new person on a client's brand, and when someone drops the ball mid-engagement it's your client relationship on the line.\n\nWe're the white-label design arm that fixes that. Dedicated designer across your client brands, flat monthly fee, no hiring.\n\nWant me to send the details?`,
+    nathan: `%%first_name%% — quick one from me.\n\nHow are you handling design production for your clients right now? Freelancer you re-brief every time? Outsourced overseas? Doing without?\n\nMost agencies your size hit the same ceiling — more clients, same bottleneck. Every re-brief is overhead, and when a designer drops the ball mid-engagement it's your client relationship at risk, not theirs.\n\nWe're the white-label design arm that solves that. Dedicated designer across your client brands, flat monthly fee, no hiring.\n\nHappy to send through the details if it sounds relevant?`
+  },
+  m2: {
+    aj: `Be honest %%first_name%% — how much margin are you losing to design revision cycles right now?\n\nThomas at Prospect House had the same problem — offshore design, quality issues, endless revisions. He'd been through Design Pickle and Kimp before finding us. Within a month he had a dedicated designer across 4 client brands. His words: "Cannot recommend Design Bees enough."\n\nFree trial on a real client brief — no commitment. Want me to send the details?`,
+    nathan: `Be honest %%first_name%% — how much margin is %%company%% losing to design revision cycles right now?\n\nThomas at Prospect House had the same problem — offshore design, quality issues, endless revisions eating his margins. He'd been through Design Pickle and Kimp before finding us. Within a month he had a dedicated designer across 4 client brands. His words: "Cannot recommend Design Bees enough."\n\nFree trial on a real client brief — no commitment. Happy to send through the details?`
+  },
+  email: {
+    aj: `Hi %%first_name%%,\n\nIf design is the thing stopping %%company%% from taking on more clients — that's a solvable problem.\n\nThomas at Prospect House was in the same spot. Offshore design, quality issues, revision cycles eating his margins. He'd been through Design Pickle and Kimp. Within a month of switching to us he had a dedicated designer across 4 client brands. His words: "Cannot recommend Design Bees enough."\n\nFree trial on a real client brief — if it's not right, you walk away with a brief's worth of free design.\n\nSee our plans: https://www.designbees.com.au/pricing-cards\nOr book a 15-min call: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nAJ\nDesign Bees — designbees.com.au`,
+    nathan: `Hi %%first_name%%,\n\nIf design is the thing stopping %%company%% from taking on more clients — that's a solvable problem.\n\nThomas at Prospect House was in the same spot. Offshore design, quality issues, revision cycles eating his margins. He'd been through Design Pickle and Kimp before finding us. Within a month he had a dedicated designer across 4 client brands. His words: "Cannot recommend Design Bees enough."\n\nFree trial on a real client brief — if it's not right, you walk away with a brief's worth of free design.\n\nSee our plans: https://www.designbees.com.au/pricing-cards\nOr book a 15-min chat: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nNathan\nDesign Bees — designbees.com.au`,
+    sAj: 'Design bottleneck at %%company%%?',
+    sNa: 'Design bottleneck at %%company%%?'
+  },
+  exit: {
+    aj: `No stress %%first_name%% — timing isn't always right.\n\nIf there's ever a point where %%company%% needs design capacity to take on more clients without the overhead — we're here: designbees.com.au/pricing-cards\n\nFree trial on a real client brief, no commitment. Good luck with everything.`,
+    nathan: `No stress %%first_name%% — timing isn't always right.\n\nIf there's ever a point where %%company%% needs design capacity to take on more clients without the overhead — we're here: designbees.com.au/pricing-cards\n\nFree trial on a real client brief, no commitment. Good luck with everything.`
+  },
+  inmail: {
+    aj: `Hi %%first_name%% — if design is the bottleneck stopping %%company%% from taking on more client work, that's a solvable problem.\n\nThomas at Prospect House had the same issue — he'd used Design Pickle and Kimp before landing with us. His words: "Cannot recommend Design Bees enough." Dedicated designer across your client brands, white-label, flat monthly fee.\n\nFree trial on a real client brief — no commitment. Want me to send the details?`,
+    nathan: `Hi %%first_name%% — most agencies hit a ceiling where design becomes the thing slowing everything else down. More clients, same bottleneck.\n\nThomas at Prospect House put it well — he'd been through Design Pickle and Kimp before finding us: "Cannot recommend Design Bees enough." Dedicated designer across all your client brands, white-label, flat monthly fee, no hiring.\n\nFree trial on a real client brief if you want to test it properly. Happy to send the details?`,
+    sAj: 'Design bottleneck?',
+    sNa: 'More clients, same bottleneck?'
+  }
+}
+};
+
+// ── Message labels ──
+const LABELS = {
+  conn:'Connection Request Note', m1:'Message 1', m15:'Message 1.5 (viewed, no reply)',
+  m2:'Message 2', email:'Email', exit:'Gracious Exit', inmail:'InMail'
+};
+
+// ── Tree definitions ──
+// t:'a' = action, t:'d' = delay, t:'c' = condition
+// v = variant (icon type), l = label, m = message key
+
+const emailBranch = (exitNodes) => ({
+  t:'c', l:'If email available',
+  left: {l:'No', c:'red', n:[
+    ...exitNodes,
+  ]},
+  right: {l:'Yes', c:'green', n:[
+    {t:'a', v:'email', l:'Send email', m:'email'},
+    {t:'d', v:'1 day'},
+    ...exitNodes,
+  ]}
+});
+
+const inmailFallback = [
+  {t:'a', v:'inmail', l:'InMail', m:'inmail'},
+  {t:'d', v:'1 day'},
+  {t:'c', l:'Responded to InMail?',
+    left: {l:'Still not responded', c:'red', n:[
+      {t:'a', v:'view', l:'View profile'},
+      {t:'d', v:'1 day'},
+      {t:'a', v:'like', l:'Like a post'},
+      {t:'d', v:'1 day'},
+      {t:'a', v:'end', l:'End of sequence'}
+    ]},
+    right: {l:'Responded', c:'green', n:[
+      {t:'a', v:'end', l:'End of sequence'}
+    ]}
+  }
+];
+
+const TREES = {
+icp1: [
+  {t:'a', v:'like', l:'Like a post'},
+  {t:'d', v:'1 day'},
+  {t:'a', v:'follow', l:'Follow'},
+  {t:'d', v:'1 day'},
+  {t:'a', v:'invite', l:'Send an invite', m:'conn'},
+  {t:'d', v:'1 day'},
+  {t:'c', l:'Connection accepted?',
+    left: {l:'Still not accepted', c:'red', n: inmailFallback},
+    right: {l:'Accepted', c:'green', n:[
+      {t:'d', v:'3 days'},
+      {t:'a', v:'msg', l:'Message', m:'m1'},
+      {t:'d', v:'1 day'},
+      {t:'c', l:'If viewed message',
+        left: {l:'No', c:'red', n:[
+          {t:'a', v:'like', l:'Like a post'},
+          {t:'d', v:'1 day'},
+          {t:'a', v:'msg', l:'Message', m:'m2'},
+          {t:'d', v:'5 days'},
+          {t:'a', v:'find', l:'Find email'},
+          emailBranch([
+            {t:'a', v:'msg', l:'Message', m:'exit'},
+            {t:'d', v:'5 days'},
+            {t:'a', v:'end', l:'End of sequence'}
+          ])
+        ]},
+        right: {l:'Yes', c:'green', n:[
+          {t:'a', v:'msg', l:'Message', m:'m2'},
+          {t:'d', v:'5 days'},
+          {t:'a', v:'find', l:'Find email'},
+          emailBranch([
+            {t:'a', v:'msg', l:'Message', m:'exit'},
+            {t:'d', v:'5 days'},
+            {t:'a', v:'end', l:'End of sequence'}
+          ])
+        ]}
+      }
+    ]}
+  }
+],
+icp2: [
+  {t:'a', v:'like', l:'Like a post'},
+  {t:'d', v:'1 day'},
+  {t:'a', v:'follow', l:'Follow'},
+  {t:'d', v:'1 day'},
+  {t:'a', v:'invite', l:'Send an invite', m:'conn'},
+  {t:'d', v:'1 day'},
+  {t:'c', l:'Connection accepted?',
+    left: {l:'Still not accepted', c:'red', n: inmailFallback},
+    right: {l:'Accepted', c:'green', n:[
+      {t:'d', v:'1 day'},
+      {t:'a', v:'msg', l:'Message', m:'m1'},
+      {t:'d', v:'2 days'},
+      {t:'c', l:'If viewed message',
+        left: {l:'No', c:'red', n:[
+          {t:'a', v:'like', l:'Like a post'},
+          {t:'d', v:'1 day'},
+          {t:'a', v:'msg', l:'Message', m:'m2'},
+          {t:'d', v:'4 days'},
+          {t:'a', v:'find', l:'Find email'},
+          emailBranch([
+            {t:'a', v:'msg', l:'Message', m:'exit'},
+            {t:'d', v:'5 days'},
+            {t:'a', v:'end', l:'End of sequence'}
+          ])
+        ]},
+        right: {l:'Yes', c:'green', n:[
+          {t:'a', v:'msg', l:'Message', m:'m15'},
+          {t:'d', v:'4 days'},
+          {t:'a', v:'find', l:'Find email'},
+          emailBranch([
+            {t:'a', v:'msg', l:'Message', m:'exit'},
+            {t:'d', v:'5 days'},
+            {t:'a', v:'end', l:'End of sequence'}
+          ])
+        ]}
+      }
+    ]}
+  }
+],
+icp3: [
+  {t:'a', v:'like', l:'Like a post'},
+  {t:'d', v:'1 day'},
+  {t:'a', v:'follow', l:'Follow'},
+  {t:'d', v:'1 day'},
+  {t:'a', v:'invite', l:'Send an invite', m:'conn'},
+  {t:'d', v:'1 day'},
+  {t:'c', l:'Connection accepted?',
+    left: {l:'Still not accepted', c:'red', n: inmailFallback},
+    right: {l:'Accepted', c:'green', n:[
+      {t:'d', v:'3 days'},
+      {t:'a', v:'msg', l:'Message', m:'m1'},
+      {t:'d', v:'1 day'},
+      {t:'c', l:'If viewed message',
+        left: {l:'No', c:'red', n:[
+          {t:'a', v:'like', l:'Like a post'},
+          {t:'d', v:'1 day'},
+          {t:'a', v:'msg', l:'Message', m:'m2'},
+          {t:'d', v:'4 days'},
+          {t:'a', v:'find', l:'Find email'},
+          emailBranch([
+            {t:'a', v:'endorse', l:'Endorse skills'},
+            {t:'d', v:'2 days'},
+            {t:'a', v:'msg', l:'Message', m:'exit'},
+            {t:'d', v:'5 days'},
+            {t:'a', v:'end', l:'End of sequence'}
+          ])
+        ]},
+        right: {l:'Yes', c:'green', n:[
+          {t:'a', v:'msg', l:'Message', m:'m2'},
+          {t:'d', v:'4 days'},
+          {t:'a', v:'endorse', l:'Endorse skills'},
+          {t:'d', v:'2 days'},
+          {t:'a', v:'find', l:'Find email'},
+          emailBranch([
+            {t:'a', v:'msg', l:'Message', m:'exit'},
+            {t:'d', v:'5 days'},
+            {t:'a', v:'end', l:'End of sequence'}
+          ])
+        ]}
+      }
+    ]}
+  }
+]
+};
+
+// ── State ──
+let sender = 'aj';
+let icp = 'icp1';
+let scale = 1;
+
+// ── Render ──
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderItems(items) {
+  let h = '';
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (it.t === 'a') {
+      const has = !!it.m;
+      const click = has ? ` onclick="showMsg('${it.m}')"` : '';
+      const cls = has ? ' clickable' : '';
+      h += `<div class="node ic-${it.v}${cls}"${click}>
+        <div class="node-icon">${IC[it.v]}</div>
+        <span class="node-label">${it.l}</span>
+        ${has ? '<div class="info-dot"></div>' : ''}
+      </div>`;
+      if (i < items.length - 1) h += '<div class="vl"></div>';
+    } else if (it.t === 'd') {
+      h += `<div class="delay-wrap">
+        <div class="vl short"></div>
+        <div class="delay">⏱ ${it.v}</div>
+        <div class="vl short"></div>
+      </div>`;
+    } else if (it.t === 'c') {
+      h += `<div class="cond-node">
+        <span class="cond-icon">◇</span>
+        <span>${it.l}</span>
+      </div>`;
+      h += '<div class="vl short"></div>';
+      h += `<div class="branch-arms">
+        <div class="branch-arm">
+          <div class="blabel ${it.left.c}">${it.left.l}</div>
+          <div class="vl short"></div>
+          <div class="arm-seq">${renderItems(it.left.n)}</div>
+        </div>
+        <div class="branch-arm">
+          <div class="blabel ${it.right.c}">${it.right.l}</div>
+          <div class="vl short"></div>
+          <div class="arm-seq">${renderItems(it.right.n)}</div>
+        </div>
+      </div>`;
+    }
+  }
+  return h;
+}
+
+function render() {
+  const root = document.getElementById('treeRoot');
+  root.innerHTML = renderItems(TREES[icp]);
+  root.style.transform = `scale(${scale})`;
+  root.style.transformOrigin = 'top center';
+}
+
+// ── Modal ──
+function showMsg(key) {
+  const msgs = M[icp][key];
+  if (!msgs) return;
+  const txt = msgs[sender];
+  const sub = sender === 'aj' ? msgs.sAj : msgs.sNa;
+  document.getElementById('mTitle').textContent = LABELS[key] || key;
+  document.getElementById('mSub').textContent = sender === 'aj' ? 'AJ sending' : 'Nathan sending';
+  const subEl = document.getElementById('mSubject');
+  if (sub) {
+    subEl.innerHTML = `<strong>Subject:</strong> ${esc(sub)}`;
+    subEl.style.display = 'block';
+  } else {
+    subEl.style.display = 'none';
+  }
+  document.getElementById('mText').textContent = txt;
+  document.getElementById('modalBg').classList.add('show');
+}
+
+function hideModal() {
+  document.getElementById('modalBg').classList.remove('show');
+  const btn = document.querySelector('.modal-copy');
+  btn.textContent = 'Copy';
+  btn.classList.remove('done');
+}
+
+function copyMsg(btn) {
+  const txt = document.getElementById('mText').textContent;
+  navigator.clipboard.writeText(txt).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('done');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1500);
+  });
+}
+
+// ── Controls ──
+function setICP(key, el) {
+  icp = key;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+  render();
+}
+
+function setSender(s) {
+  sender = s;
+  document.querySelectorAll('.sbtn').forEach((b, i) => {
+    b.classList.toggle('on', (s === 'aj' && i === 0) || (s === 'nathan' && i === 1));
+  });
+}
+
+function zoom(delta) {
+  scale = Math.max(0.3, Math.min(1.5, scale + delta));
+  document.getElementById('treeRoot').style.transform = `scale(${scale})`;
+}
+function zoomReset() {
+  scale = 1;
+  document.getElementById('treeRoot').style.transform = `scale(1)`;
+}
+
+// Initial render
+render();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     RESPONSE PLAYBOOK SECTION
+     ═══════════════════════════════════════════════════════════════ -->
+<style>
+/* ── Playbook section ── */
+.pb-divider { height:4px; background:linear-gradient(90deg,var(--purple),var(--blue),var(--purple)); margin:0; }
+.pb-section { background:var(--bg); padding:40px 24px 80px; max-width:960px; margin:0 auto; }
+.pb-section h2 { font-size:24px; font-weight:800; color:var(--purple); margin-bottom:6px; }
+.pb-section .pb-subtitle { font-size:14px; color:var(--muted); margin-bottom:32px; }
+
+/* Rules banner */
+.pb-rules { background:#fff; border:1px solid var(--node-border); border-radius:12px; padding:24px; margin-bottom:32px; box-shadow:var(--node-shadow); }
+.pb-rules h3 { font-size:15px; font-weight:700; color:var(--text); margin-bottom:14px; }
+.pb-rules-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; }
+.pb-rule { display:flex; gap:10px; align-items:flex-start; }
+.pb-rule-icon { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+.pb-rule-icon.speed { background:#fef3c7; }
+.pb-rule-icon.pause { background:#fce7f3; }
+.pb-rule-icon.tone { background:#dbeafe; }
+.pb-rule-icon.track { background:#dcfce7; }
+.pb-rule-text { font-size:13px; line-height:1.5; }
+.pb-rule-text strong { display:block; font-size:13px; color:var(--text); }
+.pb-rule-text span { color:var(--muted); }
+
+/* Category tabs */
+.pb-cat-tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:24px; }
+.pb-cat-tab { padding:8px 14px; border-radius:8px; border:1px solid var(--node-border); background:#fff; color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; transition:all .15s; white-space:nowrap; }
+.pb-cat-tab:hover { background:var(--purple-lt); color:var(--purple); }
+.pb-cat-tab.on { background:var(--purple); color:#fff; border-color:var(--purple); }
+.pb-cat-tab .cat-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+.cat-green { background:var(--green); }
+.cat-blue { background:var(--blue); }
+.cat-amber { background:#f59e0b; }
+.cat-red { background:var(--red); }
+.cat-gray { background:#9ca3af; }
+.cat-purple { background:var(--purple); }
+
+/* Category card */
+.pb-card { background:#fff; border:1px solid var(--node-border); border-radius:14px; box-shadow:var(--node-shadow); overflow:hidden; display:none; }
+.pb-card.show { display:block; }
+.pb-card-hdr { padding:20px 24px 14px; border-bottom:1px solid var(--node-border); }
+.pb-card-hdr h3 { font-size:16px; font-weight:700; color:var(--text); margin-bottom:4px; }
+.pb-card-hdr .pb-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; margin-right:6px; }
+.badge-green { background:var(--green-lt); color:var(--green); }
+.badge-blue { background:#dbeafe; color:var(--blue); }
+.badge-amber { background:#fef3c7; color:#92400e; }
+.badge-red { background:#fee2e2; color:var(--red); }
+.badge-gray { background:var(--gray-lt); color:var(--muted); }
+.badge-purple { background:var(--purple-lt); color:var(--purple); }
+.pb-card-meta { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.5; }
+
+/* Script area */
+.pb-scripts { padding:20px 24px; }
+.pb-script-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); margin-bottom:8px; }
+.pb-script-box { background:var(--bg); border:1px solid var(--node-border); border-radius:10px; padding:16px 18px; font-size:13.5px; line-height:1.7; white-space:pre-wrap; color:var(--text); margin-bottom:16px; position:relative; }
+.pb-script-box .pb-copy { position:absolute; top:8px; right:8px; background:var(--purple); color:#fff; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600; }
+.pb-script-box .pb-copy:hover { background:#6d28d9; }
+.pb-script-box .pb-copy.done { background:var(--green); }
+
+/* Sender toggle inside playbook */
+.pb-sender-tog { display:flex; gap:0; margin-bottom:16px; }
+.pb-sbtn { padding:6px 16px; border:1px solid var(--node-border); background:#fff; color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; transition:all .15s; }
+.pb-sbtn:first-child { border-radius:8px 0 0 8px; }
+.pb-sbtn:last-child { border-radius:0 8px 8px 0; border-left:none; }
+.pb-sbtn.on { background:var(--purple); color:#fff; border-color:var(--purple); }
+
+/* ICP variant pills */
+.pb-icp-pills { display:flex; gap:4px; margin-bottom:12px; }
+.pb-icp-pill { padding:4px 12px; border-radius:20px; border:1px solid var(--node-border); background:#fff; color:var(--muted); cursor:pointer; font-size:11px; font-weight:600; }
+.pb-icp-pill:hover { background:var(--purple-lt); }
+.pb-icp-pill.on { background:var(--purple-lt); color:var(--purple); border-color:rgba(124,58,237,0.3); }
+
+/* Follow-up timeline */
+.pb-followup { padding:0 24px 20px; }
+.pb-followup h4 { font-size:13px; font-weight:700; color:var(--text); margin-bottom:10px; }
+.pb-timeline { display:flex; flex-direction:column; gap:0; }
+.pb-tl-item { display:flex; align-items:flex-start; gap:12px; padding:8px 0; position:relative; }
+.pb-tl-item:not(:last-child)::before { content:''; position:absolute; left:13px; top:28px; bottom:-8px; width:2px; background:var(--node-border); }
+.pb-tl-dot { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; background:var(--purple-lt); color:var(--purple); border:2px solid #fff; box-shadow:0 0 0 1px var(--node-border); }
+.pb-tl-content { font-size:13px; line-height:1.5; }
+.pb-tl-content strong { color:var(--text); }
+.pb-tl-content span { color:var(--muted); }
+
+/* Warning / tip box */
+.pb-tip { display:flex; gap:10px; align-items:flex-start; padding:12px 16px; border-radius:8px; margin:12px 24px 20px; font-size:12px; line-height:1.5; }
+.pb-tip.warn { background:#fef3c7; color:#92400e; }
+.pb-tip.info { background:#dbeafe; color:#1e40af; }
+.pb-tip-icon { font-size:16px; flex-shrink:0; }
+
+/* Metrics bar */
+.pb-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; padding:0 24px 20px; }
+.pb-metric { background:var(--bg); border:1px solid var(--node-border); border-radius:10px; padding:14px 16px; text-align:center; }
+.pb-metric-val { font-size:22px; font-weight:800; color:var(--purple); }
+.pb-metric-label { font-size:11px; color:var(--muted); margin-top:2px; }
+
+/* ── Reply Composer ── */
+.rc-wrap { background:#fff; border:2px solid var(--purple); border-radius:16px; padding:28px; margin-top:36px; box-shadow:0 4px 20px rgba(124,58,237,0.1); }
+.rc-title { font-size:18px; font-weight:800; color:var(--purple); margin-bottom:4px; }
+.rc-subtitle { font-size:13px; color:var(--muted); margin-bottom:20px; }
+.rc-form { display:flex; flex-direction:column; gap:16px; }
+.rc-field { display:flex; flex-direction:column; gap:6px; }
+.rc-field-sm { flex:1; min-width:0; }
+.rc-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); }
+.rc-input { width:100%; border:1px solid var(--node-border); border-radius:10px; padding:12px 14px; font-size:14px; font-family:inherit; resize:vertical; color:var(--text); background:var(--bg); transition:border-color .15s; }
+.rc-input:focus { outline:none; border-color:var(--purple); box-shadow:0 0 0 3px rgba(124,58,237,0.1); }
+.rc-controls { display:flex; gap:16px; flex-wrap:wrap; }
+.rc-pills { display:flex; gap:0; }
+.rc-pill { padding:7px 14px; border:1px solid var(--node-border); background:#fff; color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; transition:all .15s; }
+.rc-pill:first-child { border-radius:8px 0 0 8px; }
+.rc-pill:last-child { border-radius:0 8px 8px 0; border-left:none; }
+.rc-pill:not(:first-child):not(:last-child) { border-left:none; }
+.rc-pill.on { background:var(--purple); color:#fff; border-color:var(--purple); }
+.rc-pill:hover:not(.on) { background:var(--purple-lt); color:var(--purple); }
+.rc-generate { align-self:flex-start; padding:12px 32px; border-radius:10px; border:none; background:var(--purple); color:#fff; font-size:14px; font-weight:700; cursor:pointer; transition:background .15s; }
+.rc-generate:hover { background:#6d28d9; }
+
+/* Result */
+.rc-result { margin-top:24px; padding-top:20px; border-top:1px solid var(--node-border); }
+.rc-detected { background:var(--purple-lt); border-radius:10px; padding:14px 18px; margin-bottom:16px; }
+.rc-detected-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.rc-detected-label { font-size:12px; color:var(--muted); font-weight:600; }
+.rc-detected-cat { font-size:13px; font-weight:700; color:var(--purple); }
+.rc-detected-conf { font-size:11px; padding:2px 8px; border-radius:10px; font-weight:600; }
+.rc-detected-conf.high { background:var(--green-lt); color:var(--green); }
+.rc-detected-conf.medium { background:#fef3c7; color:#92400e; }
+.rc-detected-conf.low { background:#fee2e2; color:var(--red); }
+.rc-override { display:flex; align-items:center; gap:8px; }
+.rc-select { padding:5px 10px; border:1px solid var(--node-border); border-radius:6px; font-size:12px; font-family:inherit; color:var(--text); background:#fff; cursor:pointer; }
+.rc-output-label { font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px; }
+.rc-output-wrap { position:relative; }
+.rc-output { width:100%; border:1px solid var(--node-border); border-radius:10px; padding:16px 14px; padding-right:70px; font-size:14px; font-family:inherit; line-height:1.7; resize:vertical; color:var(--text); background:var(--bg); }
+.rc-output:focus { outline:none; border-color:var(--purple); box-shadow:0 0 0 3px rgba(124,58,237,0.1); }
+.rc-copy-btn { position:absolute; top:10px; right:10px; background:var(--purple); color:#fff; border:none; padding:6px 16px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; }
+.rc-copy-btn:hover { background:#6d28d9; }
+.rc-copy-btn.done { background:var(--green); }
+.rc-tip-row { margin-top:12px; display:flex; gap:8px; align-items:flex-start; padding:10px 14px; border-radius:8px; background:#dbeafe; color:#1e40af; font-size:12px; line-height:1.5; }
+.rc-tip-row:empty { display:none; }
+
+@media(max-width:700px) {
+  .pb-rules-grid { grid-template-columns:1fr; }
+  .pb-metrics { grid-template-columns:1fr 1fr; }
+  .rc-controls { flex-direction:column; }
+}
+</style>
+
+<div class="pb-divider"></div>
+
+<div class="pb-section">
+  <h2>Response Playbook</h2>
+  <p class="pb-subtitle">Research-backed scripts for every reply type. Pause all automation the moment someone replies — switch to manual from here.</p>
+
+  <!-- ── Golden Rules ── -->
+  <div class="pb-rules">
+    <h3>Golden Rules</h3>
+    <div class="pb-rules-grid">
+      <div class="pb-rule">
+        <div class="pb-rule-icon speed">⚡</div>
+        <div class="pb-rule-text">
+          <strong>Reply within 5 minutes</strong>
+          <span>Leads contacted within 5 min are 21x more likely to qualify. 78% of buyers go with the first responder. Set mobile notifications for Dripify Smart Inbox + email.</span>
+        </div>
+      </div>
+      <div class="pb-rule">
+        <div class="pb-rule-icon pause">⏸️</div>
+        <div class="pb-rule-text">
+          <strong>Pause all automation</strong>
+          <span>The moment someone replies, Dripify pauses their sequence. Never re-add them. Switch to 100% manual, human conversation from this point.</span>
+        </div>
+      </div>
+      <div class="pb-rule">
+        <div class="pb-rule-icon tone">💬</div>
+        <div class="pb-rule-text">
+          <strong>One CTA per message</strong>
+          <span>Keep replies under 100 words on LinkedIn. Match the prospect's energy. Sell the meeting, not the service. Never close on the first reply.</span>
+        </div>
+      </div>
+      <div class="pb-rule">
+        <div class="pb-rule-icon track">📊</div>
+        <div class="pb-rule-text">
+          <strong>Track 3 metrics</strong>
+          <span>Positive reply rate (target: 40–60% of all replies). Meeting conversion (target: 40%+ of positive replies). Cost per meeting booked.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Benchmark Metrics ── -->
+  <div class="pb-metrics">
+    <div class="pb-metric">
+      <div class="pb-metric-val">21x</div>
+      <div class="pb-metric-label">More likely to qualify<br>(reply within 5 min vs 30 min)</div>
+    </div>
+    <div class="pb-metric">
+      <div class="pb-metric-val">40–60%</div>
+      <div class="pb-metric-label">Target positive reply rate<br>(of all replies received)</div>
+    </div>
+    <div class="pb-metric">
+      <div class="pb-metric-val">50–70%</div>
+      <div class="pb-metric-label">Of responses come from<br>follow-ups, not first messages</div>
+    </div>
+    <div class="pb-metric">
+      <div class="pb-metric-val">62%</div>
+      <div class="pb-metric-label">Conversion rate using<br>Feel-Felt-Found framework</div>
+    </div>
+  </div>
+
+  <!-- ── Category Tabs ── -->
+  <div class="pb-cat-tabs" id="pbCatTabs">
+    <button class="pb-cat-tab on" onclick="showCat('positive',this)"><span class="cat-dot cat-green"></span>Positive Interest</button>
+    <button class="pb-cat-tab" onclick="showCat('curious',this)"><span class="cat-dot cat-blue"></span>Curious / Questions</button>
+    <button class="pb-cat-tab" onclick="showCat('pricing',this)"><span class="cat-dot cat-blue"></span>Pricing Question</button>
+    <button class="pb-cat-tab" onclick="showCat('sendinfo',this)"><span class="cat-dot cat-amber"></span>"Send Me Info"</button>
+    <button class="pb-cat-tab" onclick="showCat('referral',this)"><span class="cat-dot cat-purple"></span>Referral</button>
+    <button class="pb-cat-tab" onclick="showCat('existing',this)"><span class="cat-dot cat-amber"></span>Already Have a Designer</button>
+    <button class="pb-cat-tab" onclick="showCat('notnow',this)"><span class="cat-dot cat-amber"></span>"Not Right Now"</button>
+    <button class="pb-cat-tab" onclick="showCat('notnow_tl',this)"><span class="cat-dot cat-amber"></span>"Not Now" + Timeline</button>
+    <button class="pb-cat-tab" onclick="showCat('inhouse',this)"><span class="cat-dot cat-amber"></span>Handle It In-House</button>
+    <button class="pb-cat-tab" onclick="showCat('triedbefore',this)"><span class="cat-dot cat-amber"></span>Tried This Before</button>
+    <button class="pb-cat-tab" onclick="showCat('negative',this)"><span class="cat-dot cat-red"></span>Not Interested</button>
+    <button class="pb-cat-tab" onclick="showCat('hostile',this)"><span class="cat-dot cat-red"></span>Angry / Hostile</button>
+    <button class="pb-cat-tab" onclick="showCat('ooo',this)"><span class="cat-dot cat-gray"></span>Out of Office</button>
+  </div>
+
+  <!-- ══════════ CATEGORY CARDS ══════════ -->
+  <div id="pbCards">
+
+    <!-- ── 1. Positive Interest ── -->
+    <div class="pb-card show" data-cat="positive">
+      <div class="pb-card-hdr">
+        <h3>Positive Interest — Book the Call</h3>
+        <span class="pb-badge badge-green">High Priority</span>
+        <span class="pb-badge badge-green">Reply &lt; 5 min</span>
+        <div class="pb-card-meta">They said: "Sure, let's chat" / "Tell me more" / "Sounds interesting" / "I'd be open to a call"<br>Goal: Get them on the calendar immediately. Don't pitch — book.</div>
+      </div>
+      <div class="pb-scripts">
+        <div class="pb-sender-tog">
+          <button class="pb-sbtn on" onclick="setPbSender('positive','aj',this)">AJ</button>
+          <button class="pb-sbtn" onclick="setPbSender('positive','nathan',this)">Nathan</button>
+        </div>
+        <div class="pb-script-label">LinkedIn / DM Reply</div>
+        <div class="pb-script-box" data-cat="positive" data-variant="aj" data-channel="li">Love to hear it %%first_name%% — let's make it easy. Here's a link to grab 15 minutes, I'll walk you through exactly how it works for %%company%%:
+
+https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation
+
+If none of those times work, just tell me what suits and I'll make it happen.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-box" data-cat="positive" data-variant="nathan" data-channel="li" style="display:none">Great to hear %%first_name%% — let's lock something in. Here's a link to grab 15 minutes and I'll walk you through how it'd work for %%company%%:
+
+https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation
+
+If none of those times suit, just let me know what works and I'll sort it out.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-label">Email Reply</div>
+        <div class="pb-script-box" data-cat="positive" data-variant="aj" data-channel="email">Hi %%first_name%%,
+
+Great — let's make it easy. Here's a link to grab 15 minutes:
+
+https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation
+
+I'll walk you through exactly how it works and we can figure out if it's a fit for %%company%%. If none of those times work, just reply with what suits.
+
+Cheers,
+AJ<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-box" data-cat="positive" data-variant="nathan" data-channel="email" style="display:none">Hi %%first_name%%,
+
+Great to hear — let's lock something in. Here's a link to grab 15 minutes:
+
+https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation
+
+I'll walk you through how it'd work for %%company%% and we can see if it's a good fit. If none of those times suit, just let me know.
+
+Cheers,
+Nathan<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+      </div>
+      <div class="pb-tip warn">
+        <span class="pb-tip-icon">⚠️</span>
+        <div>If they don't book within 24 hours, send a nudge on the OTHER channel (if they replied on LinkedIn, nudge via email, and vice versa). "Hey %%first_name%% — just wanted to make sure my calendar link worked. Here it is again in case: [link]"</div>
+      </div>
+      <div class="pb-followup">
+        <h4>If they go quiet after saying yes</h4>
+        <div class="pb-timeline">
+          <div class="pb-tl-item"><div class="pb-tl-dot">1</div><div class="pb-tl-content"><strong>24 hours</strong> — <span>Nudge on alternate channel with calendar link</span></div></div>
+          <div class="pb-tl-item"><div class="pb-tl-dot">2</div><div class="pb-tl-content"><strong>3 days</strong> — <span>"Still keen to connect %%first_name%%? Happy to work around your schedule — just let me know a time."</span></div></div>
+          <div class="pb-tl-item"><div class="pb-tl-dot">3</div><div class="pb-tl-content"><strong>7 days</strong> — <span>Share a relevant case study or portfolio piece as added value</span></div></div>
+          <div class="pb-tl-item"><div class="pb-tl-dot">4</div><div class="pb-tl-content"><strong>14 days</strong> — <span>Breakup: "No stress if the timing's shifted %%first_name%%. Door's always open — designbees.com.au/pricing-cards"</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 2. Curious / Questions ── -->
+    <div class="pb-card" data-cat="curious">
+      <div class="pb-card-hdr">
+        <h3>Curious / Asking Questions</h3>
+        <span class="pb-badge badge-blue">Medium-High Priority</span>
+        <span class="pb-badge badge-green">Reply &lt; 5 min</span>
+        <div class="pb-card-meta">They said: "How does it work?" / "What kind of design do you do?" / "Can you do [specific thing]?" / "Tell me more"<br>Goal: Answer their specific question concisely, then bridge to a call. Don't dump your whole pitch.</div>
+      </div>
+      <div class="pb-scripts">
+        <div class="pb-sender-tog">
+          <button class="pb-sbtn on" onclick="setPbSender('curious','aj',this)">AJ</button>
+          <button class="pb-sbtn" onclick="setPbSender('curious','nathan',this)">Nathan</button>
+        </div>
+        <div class="pb-script-label">LinkedIn / DM Reply</div>
+        <div class="pb-script-box" data-cat="curious" data-variant="aj" data-channel="li">Great question — [answer their specific question in 1–2 sentences].
+
+Easiest way to see if it's a fit for %%company%% is a quick 15-min call — I can tailor it to what you actually need: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation
+
+Or if you'd rather look first: designbees.com.au/pricing-cards<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-box" data-cat="curious" data-variant="nathan" data-channel="li" style="display:none">Good question — [answer their specific question in 1–2 sentences].
+
+Happy to jump on a quick 15-min call to walk through the details properly — I can tailor it to %%company%%: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation
+
+Or here's the pricing breakdown if you'd prefer to have a look first: designbees.com.au/pricing-cards<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+      </div>
+      <div class="pb-tip info">
+        <span class="pb-tip-icon">💡</span>
+        <div><strong>Include ONE qualifying question</strong> to move the conversation forward. E.g., "Quick question — are you handling design in-house right now or working with someone?" This keeps the dialogue going if they don't book immediately.</div>
+      </div>
+      <div class="pb-followup">
+        <h4>If they go quiet after asking</h4>
+        <div class="pb-timeline">
+          <div class="pb-tl-item"><div class="pb-tl-dot">1</div><div class="pb-tl-content"><strong>3 days</strong> — <span>"Did that answer your question %%first_name%%? Happy to dig into anything else."</span></div></div>
+          <div class="pb-tl-item"><div class="pb-tl-dot">2</div><div class="pb-tl-content"><strong>7 days</strong> — <span>Share a case study relevant to their question</span></div></div>
+          <div class="pb-tl-item"><div class="pb-tl-dot">3</div><div class="pb-tl-content"><strong>14 days</strong> — <span>Soft breakup message</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 3. Pricing Question ── -->
+    <div class="pb-card" data-cat="pricing">
+      <div class="pb-card-hdr">
+        <h3>Pricing Question</h3>
+        <span class="pb-badge badge-blue">Medium-High Priority</span>
+        <span class="pb-badge badge-green">Reply &lt; 5 min</span>
+        <div class="pb-card-meta">They said: "How much does it cost?" / "What are your rates?" / "Is there a free trial?"<br>Goal: Give a direct, transparent answer — then reframe around value and book the call.</div>
+      </div>
+      <div class="pb-scripts">
+        <div class="pb-sender-tog">
+          <button class="pb-sbtn on" onclick="setPbSender('pricing','aj',this)">AJ</button>
+          <button class="pb-sbtn" onclick="setPbSender('pricing','nathan',this)">Nathan</button>
+        </div>
+        <div class="pb-script-label">LinkedIn / DM Reply</div>
+        <div class="pb-script-box" data-cat="pricing" data-variant="aj" data-channel="li">Good question — plans start at $545/month for a dedicated designer doing 4 hours a week. Goes up to $2,645/month for higher volume. All plans include unlimited revisions, no lock-in, and a 10-day free trial.
+
+Full breakdown here: designbees.com.au/pricing-cards
+
+Happy to jump on a quick call to figure out which plan makes sense for %%company%%: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-box" data-cat="pricing" data-variant="nathan" data-channel="li" style="display:none">Great question — plans start at $545/month for a dedicated designer doing 4 hours a week, up to $2,645/month for higher volume. Unlimited revisions, no lock-in, and we run a free 10-day trial so you can test it properly.
+
+Here's the full breakdown: designbees.com.au/pricing-cards
+
+Happy to jump on 15 minutes to figure out which plan fits %%company%%: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+      </div>
+      <div class="pb-tip info">
+        <span class="pb-tip-icon">💡</span>
+        <div><strong>If they say "too expensive"</strong> — use Feel-Felt-Found: "Totally fair. A few founders we work with felt the same way — then they mapped out what they were actually spending between Canva Pro, freelancer invoices, and their own time at $X/hr. Most found the flat fee actually saved them money. Happy to walk through it?"</div>
+      </div>
+    </div>
+
+    <!-- ── 4. Send Me Info ── -->
+    <div class="pb-card" data-cat="sendinfo">
+      <div class="pb-card-hdr">
+        <h3>"Send Me Info" — Non-Committal Interest</h3>
+        <span class="pb-badge badge-amber">Medium Priority</span>
+        <span class="pb-badge badge-green">Reply &lt; 5 min</span>
+        <div class="pb-card-meta">They said: "Send me some info" / "Can you email me details?" / "I'll have a look"<br>Goal: Send the info, but include ONE qualifying question to keep the conversation alive. Schedule a follow-up for 3–5 days.</div>
+      </div>
+      <div class="pb-scripts">
+        <div class="pb-sender-tog">
+          <button class="pb-sbtn on" onclick="setPbSender('sendinfo','aj',this)">AJ</button>
+          <button class="pb-sbtn" onclick="setPbSender('sendinfo','nathan',this)">Nathan</button>
+        </div>
+        <div class="pb-script-label">LinkedIn / DM Reply</div>
+        <div class="pb-script-box" data-cat="sendinfo" data-variant="aj" data-channel="li">Sure thing — here's everything in one spot: designbees.com.au/pricing-cards
+
+Quick question before I leave you to it — what's the main thing eating your time on design right now? That way I can point you to the most relevant stuff.
+
+Happy to jump on a quick call too if that's easier: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-box" data-cat="sendinfo" data-variant="nathan" data-channel="li" style="display:none">Of course — here's the full rundown: designbees.com.au/pricing-cards
+
+Quick question — what's the biggest design headache at %%company%% right now? Happy to point you to the most relevant case study.
+
+Or if you'd prefer to chat through it, here's my calendar: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+      </div>
+      <div class="pb-followup">
+        <h4>Follow-up cadence</h4>
+        <div class="pb-timeline">
+          <div class="pb-tl-item"><div class="pb-tl-dot">1</div><div class="pb-tl-content"><strong>3–5 days</strong> — <span>"Hey %%first_name%% — did you get a chance to look? Happy to answer anything."</span></div></div>
+          <div class="pb-tl-item"><div class="pb-tl-dot">2</div><div class="pb-tl-content"><strong>7–10 days</strong> — <span>Share a relevant case study: "Thought this might be useful — [client name] was in a similar spot."</span></div></div>
+          <div class="pb-tl-item"><div class="pb-tl-dot">3</div><div class="pb-tl-content"><strong>14 days</strong> — <span>Soft breakup: "No stress if the timing's off. Door's open."</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 5. Referral ── -->
+    <div class="pb-card" data-cat="referral">
+      <div class="pb-card-hdr">
+        <h3>Referral — "Talk to Someone Else"</h3>
+        <span class="pb-badge badge-purple">High Value</span>
+        <span class="pb-badge badge-green">Reply &lt; 5 min</span>
+        <div class="pb-card-meta">They said: "You should talk to our marketing manager" / "I'm not the right person, try [name]" / "Let me connect you with [person]"<br>Goal: Thank them warmly, ask for a warm intro, and make it effortless for them.</div>
+      </div>
+      <div class="pb-scripts">
+        <div class="pb-sender-tog">
+          <button class="pb-sbtn on" onclick="setPbSender('referral','aj',this)">AJ</button>
+          <button class="pb-sbtn" onclick="setPbSender('referral','nathan',this)">Nathan</button>
+        </div>
+        <div class="pb-script-label">LinkedIn / DM Reply</div>
+        <div class="pb-script-box" data-cat="referral" data-variant="aj" data-channel="li">Really appreciate that %%first_name%% — would you be open to making a quick intro? Happy to keep it short and low-pressure for them.
+
+If it's easier, I can just mention your name when I reach out directly. Whatever works best.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-box" data-cat="referral" data-variant="nathan" data-channel="li" style="display:none">Appreciate the pointer %%first_name%% — would you be open to a quick intro? I'll keep it brief and easy for them.
+
+Alternatively, happy to reach out directly and mention you pointed me their way. Whatever's easiest on your end.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+      </div>
+      <div class="pb-tip info">
+        <span class="pb-tip-icon">💡</span>
+        <div><strong>When reaching out to the referred person:</strong> "Hi [name] — %%first_name%% at %%company%% suggested I reach out. [Then use the appropriate ICP sequence connection note, personalized to the new contact's role.]" Referral-based outreach converts at 3–5x the rate of cold outreach.</div>
+      </div>
+    </div>
+
+    <!-- ── 6. Already Have a Designer/Agency ── -->
+    <div class="pb-card" data-cat="existing">
+      <div class="pb-card-hdr">
+        <h3>"We Already Have a Designer / Agency"</h3>
+        <span class="pb-badge badge-amber">Objection</span>
+        <span class="pb-badge badge-amber">Reply within 1 hour</span>
+        <div class="pb-card-meta">They said: "We already work with someone" / "We have a designer" / "We just signed with an agency"<br>Goal: Don't compete — complement. Position as overflow capacity, not a replacement. Ask what's working and what isn't.</div>
+      </div>
+      <div class="pb-scripts">
+        <div class="pb-sender-tog">
+          <button class="pb-sbtn on" onclick="setPbSender('existing','aj',this)">AJ</button>
+          <button class="pb-sbtn" onclick="setPbSender('existing','nathan',this)">Nathan</button>
+        </div>
+        <div class="pb-script-label">LinkedIn / DM Reply</div>
+        <div class="pb-script-box" data-cat="existing" data-variant="aj" data-channel="li">Good to hear you've got that covered %%first_name%%. Out of curiosity — are they handling everything, or do you still end up with overflow that takes longer than it should?
+
+A few of the businesses we work with use us alongside their main designer for the stuff that piles up — social content, decks, one-off assets. Flat monthly fee, no contracts, easy to spin up.
+
+No pressure either way — just figured it was worth mentioning.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-box" data-cat="existing" data-variant="nathan" data-channel="li" style="display:none">Good to hear %%first_name%% — always better to have someone in place. Quick question though — are they across everything, or do you find some things still pile up or take longer than they should?
+
+A few of our clients actually use us as a second pair of hands alongside their main designer — for the overflow stuff like social content, pitch decks, one-off assets. Flat monthly fee, no lock-in.
+
+No pressure at all — just thought it might be relevant.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+      </div>
+      <div class="pb-tip warn">
+        <span class="pb-tip-icon">⚠️</span>
+        <div><strong>Never badmouth their current provider.</strong> If they're happy, exit gracefully: "Glad you've got a good setup — if anything changes, you know where to find us." Add to quarterly nurture list.</div>
+      </div>
+    </div>
+
+    <!-- ── 7. Not Right Now (Vague) ── -->
+    <div class="pb-card" data-cat="notnow">
+      <div class="pb-card-hdr">
+        <h3>"Not Right Now" — Vague Timing</h3>
+        <span class="pb-badge badge-amber">Objection</span>
+        <span class="pb-badge badge-amber">Reply within 1 hour</span>
+        <div class="pb-card-meta">They said: "Not the right time" / "Too busy right now" / "Maybe later" / "Check back in a while"<br>Goal: Acknowledge, ask for a specific timeframe, set a calendar reminder. Don't push — plant the seed.</div>
+      </div>
+      <div class="pb-scripts">
+        <div class="pb-sender-tog">
+          <button class="pb-sbtn on" onclick="setPbSender('notnow','aj',this)">AJ</button>
+          <button class="pb-sbtn" onclick="setPbSender('notnow','nathan',this)">Nathan</button>
+        </div>
+        <div class="pb-script-label">LinkedIn / DM Reply</div>
+        <div class="pb-script-box" data-cat="notnow" data-variant="aj" data-channel="li">Totally understand %%first_name%% — timing is everything. Mind if I check back in a couple of months? No pitch, just a quick check-in to see if anything's shifted.
+
+Happy to stay connected in the meantime.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-box" data-cat="notnow" data-variant="nathan" data-channel="li" style="display:none">Makes total sense %%first_name%% — no rush at all. Would it be alright if I circled back in a couple of months? No pitch, just a quick check-in.
+
+Happy to stay connected in the meantime.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+      </div>
+      <div class="pb-tip info">
+        <span class="pb-tip-icon">💡</span>
+        <div><strong>Set a calendar reminder</strong> for 8 weeks out. When you follow up: "Hey %%first_name%% — we chatted back in [month] and you mentioned the timing wasn't quite right. Has anything shifted on the design front at %%company%%?" Add to quarterly nurture list in the meantime.</div>
+      </div>
+    </div>
+
+    <!-- ── 8. Not Now + Timeline ── -->
+    <div class="pb-card" data-cat="notnow_tl">
+      <div class="pb-card-hdr">
+        <h3>"Not Now" — With a Timeline</h3>
+        <span class="pb-badge badge-purple">High Value</span>
+        <span class="pb-badge badge-amber">Reply within 1 hour</span>
+        <div class="pb-card-meta">They said: "Check back in Q3" / "We're launching in June, maybe then" / "After our rebrand" / "Next quarter"<br>Goal: Lock in the follow-up date precisely. This is a warm lead with a buying window — treat it like gold.</div>
+      </div>
+      <div class="pb-scripts">
+        <div class="pb-sender-tog">
+          <button class="pb-sbtn on" onclick="setPbSender('notnow_tl','aj',this)">AJ</button>
+          <button class="pb-sbtn" onclick="setPbSender('notnow_tl','nathan',this)">Nathan</button>
+        </div>
+        <div class="pb-script-label">LinkedIn / DM Reply</div>
+        <div class="pb-script-box" data-cat="notnow_tl" data-variant="aj" data-channel="li">Makes total sense %%first_name%%. I'll set a reminder to drop you a message in [their timeframe]. No pitch — just a check-in to see if the timing's better.
+
+In the meantime, here's our pricing if you want to have it handy: designbees.com.au/pricing-cards
+
+Good luck with [whatever they mentioned — launch, rebrand, etc.].<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-box" data-cat="notnow_tl" data-variant="nathan" data-channel="li" style="display:none">Completely understand %%first_name%% — I'll pop a reminder in for [their timeframe] and check back then. No pressure, just a quick ping.
+
+Here's our pricing in the meantime if it's useful to have: designbees.com.au/pricing-cards
+
+Good luck with [whatever they mentioned].<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+      </div>
+      <div class="pb-tip warn">
+        <span class="pb-tip-icon">⚠️</span>
+        <div><strong>Critical: Set the calendar reminder immediately.</strong> Follow up 1–2 days before their stated timeline (e.g., if they said "Q3", reach out late June). Reference their specific situation: "Hey %%first_name%% — you mentioned %%company%% was looking at [thing] around now. Still relevant?"</div>
+      </div>
+    </div>
+
+    <!-- ── 9. Handle It In-House / Canva ── -->
+    <div class="pb-card" data-cat="inhouse">
+      <div class="pb-card-hdr">
+        <h3>"We Handle It In-House" / "We Use Canva"</h3>
+        <span class="pb-badge badge-amber">Objection</span>
+        <span class="pb-badge badge-amber">Reply within 1 hour</span>
+        <div class="pb-card-meta">They said: "We do it ourselves" / "We use Canva" / "Our marketing person handles design" / "I do it myself"<br>Goal: Empathize (you know they're spending hours on it). Reframe around time cost and quality, not replacement.</div>
+      </div>
+      <div class="pb-scripts">
+        <div class="pb-sender-tog">
+          <button class="pb-sbtn on" onclick="setPbSender('inhouse','aj',this)">AJ</button>
+          <button class="pb-sbtn" onclick="setPbSender('inhouse','nathan',this)">Nathan</button>
+        </div>
+        <div class="pb-script-label">LinkedIn / DM Reply — Founder (doing it themselves)</div>
+        <div class="pb-script-box" data-cat="inhouse" data-variant="aj" data-channel="li">Fair enough %%first_name%% — most founders at your stage are. Canva gets the job done but it eats hours you probably can't afford.
+
+One of the founders we work with was spending 8–10 hours a week on it. Now he just sends a brief and gets designs back same day. $545/month — less than one freelancer invoice.
+
+No pressure at all — just figured it was worth putting on your radar for when the bottleneck hits.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-box" data-cat="inhouse" data-variant="nathan" data-channel="li" style="display:none">That's how most founders at your stage handle it %%first_name%% — totally normal. The question is whether it's the best use of your time.
+
+One of the founders we work with was spending 8–10 hours a week on design. Now he sends a quick brief and gets everything back same day. $545/month, dedicated designer, no contracts.
+
+No pressure — just thought it might be worth knowing about for when the to-do list gets too long.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-label" style="margin-top:8px">LinkedIn / DM Reply — Marketing person handles it</div>
+        <div class="pb-script-box" data-cat="inhouse" data-variant="aj" data-channel="li2">Makes sense — but is design actually in their job description, or is it just one of the things that landed on their plate?
+
+Most marketing managers we talk to are spending 10+ hours a week on design that isn't their core job. A dedicated designer for a flat monthly fee frees them up to focus on what actually moves the needle.
+
+Happy to send through the details if it's relevant.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-box" data-cat="inhouse" data-variant="nathan" data-channel="li2" style="display:none">Fair enough — though I'd bet design isn't really what they were hired to do. Most marketing managers we talk to are spending 10+ hours a week on it — time they could spend on strategy, campaigns, the stuff that actually moves the needle.
+
+A dedicated designer on a flat monthly fee changes that equation pretty quickly. Happy to share how it works if it's ever relevant.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+      </div>
+    </div>
+
+    <!-- ── 10. Tried This Before ── -->
+    <div class="pb-card" data-cat="triedbefore">
+      <div class="pb-card-hdr">
+        <h3>"We Tried Something Like This Before"</h3>
+        <span class="pb-badge badge-amber">Objection</span>
+        <span class="pb-badge badge-amber">Reply within 1 hour</span>
+        <div class="pb-card-meta">They said: "We used Design Pickle / Kimp / Penji" / "We tried unlimited design and it didn't work" / "Had a bad experience with outsourced design"<br>Goal: Differentiate. Acknowledge the pain. Use Thomas @ Prospect House as social proof — he had the same experience.</div>
+      </div>
+      <div class="pb-scripts">
+        <div class="pb-sender-tog">
+          <button class="pb-sbtn on" onclick="setPbSender('triedbefore','aj',this)">AJ</button>
+          <button class="pb-sbtn" onclick="setPbSender('triedbefore','nathan',this)">Nathan</button>
+        </div>
+        <div class="pb-script-label">LinkedIn / DM Reply</div>
+        <div class="pb-script-box" data-cat="triedbefore" data-variant="aj" data-channel="li">I hear that a lot actually — Design Pickle and Kimp come up often. The main difference our clients mention is having a dedicated designer who actually learns your brand, so you stop re-briefing from scratch every time.
+
+Thomas at Prospect House had exactly that experience — he'd been through both before finding us. Now he's got one designer across 4 client brands. His words: "Cannot recommend Design Bees enough."
+
+Happy to share his case study if you'd like to see the details. No pressure either way.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-box" data-cat="triedbefore" data-variant="nathan" data-channel="li" style="display:none">Totally understand — and honestly, that's a fair concern. The big difference comes down to a dedicated designer who actually learns your brand vs. a revolving door of people you have to re-brief every time.
+
+Thomas at Prospect House was in the exact same spot — he'd tried Design Pickle and Kimp before landing with us. Now he's got one designer across 4 client brands. His words: "Cannot recommend Design Bees enough."
+
+Happy to send through his case study if it'd help. Zero pressure.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+      </div>
+      <div class="pb-tip info">
+        <span class="pb-tip-icon">💡</span>
+        <div><strong>Key differentiators to emphasize:</strong> Dedicated (not rotating) designer, Australian-managed quality, same-day turnaround, brand consistency across assets, no lock-in contract, and the free 10-day trial to prove it with zero risk.</div>
+      </div>
+    </div>
+
+    <!-- ── 11. Not Interested / Hard No ── -->
+    <div class="pb-card" data-cat="negative">
+      <div class="pb-card-hdr">
+        <h3>Not Interested — Clear Rejection</h3>
+        <span class="pb-badge badge-red">Low Priority</span>
+        <span class="pb-badge badge-gray">Reply within a few hours</span>
+        <div class="pb-card-meta">They said: "Not interested" / "No thanks" / "Please don't contact me again" / "Not for us"<br>Goal: Exit gracefully in 1–2 sentences. Leave the door open. Never argue, never pitch. Immediately suppress from all active sequences.</div>
+      </div>
+      <div class="pb-scripts">
+        <div class="pb-sender-tog">
+          <button class="pb-sbtn on" onclick="setPbSender('negative','aj',this)">AJ</button>
+          <button class="pb-sbtn" onclick="setPbSender('negative','nathan',this)">Nathan</button>
+        </div>
+        <div class="pb-script-label">LinkedIn / DM Reply</div>
+        <div class="pb-script-box" data-cat="negative" data-variant="aj" data-channel="li">Appreciate you letting me know %%first_name%%. No worries at all — wishing you and %%company%% all the best.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-box" data-cat="negative" data-variant="nathan" data-channel="li" style="display:none">Totally understand %%first_name%% — thanks for letting me know. Wishing you and the team all the best.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+      </div>
+      <div class="pb-tip warn">
+        <span class="pb-tip-icon">⚠️</span>
+        <div><strong>Immediately:</strong> Remove from all active Dripify sequences. Add to a "rejected" list so they're excluded from future campaigns. Add to a low-frequency quarterly nurture list (value content only — no sales). 60% of buyers say "no" four times before saying "yes," but re-engagement should come through content, not more outreach.</div>
+      </div>
+    </div>
+
+    <!-- ── 12. Angry / Hostile ── -->
+    <div class="pb-card" data-cat="hostile">
+      <div class="pb-card-hdr">
+        <h3>Angry / Hostile Response</h3>
+        <span class="pb-badge badge-red">Handle with Care</span>
+        <span class="pb-badge badge-gray">Reply within a few hours</span>
+        <div class="pb-card-meta">They said: Rude, aggressive, or threatening language. "Stop spamming me" / profanity / threats to report.<br>Goal: De-escalate with one calm sentence. Confirm removal. Do NOT engage, explain, or defend. Full stop.</div>
+      </div>
+      <div class="pb-scripts">
+        <div class="pb-sender-tog">
+          <button class="pb-sbtn on" onclick="setPbSender('hostile','aj',this)">AJ</button>
+          <button class="pb-sbtn" onclick="setPbSender('hostile','nathan',this)">Nathan</button>
+        </div>
+        <div class="pb-script-label">LinkedIn / DM Reply (same for both)</div>
+        <div class="pb-script-box" data-cat="hostile" data-variant="aj" data-channel="li">Apologies for the inconvenience. I've removed you from our list — you won't hear from us again.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-box" data-cat="hostile" data-variant="nathan" data-channel="li" style="display:none">Apologies for the bother. I've removed you from our list — you won't hear from us again.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+      </div>
+      <div class="pb-tip warn">
+        <span class="pb-tip-icon">⚠️</span>
+        <div><strong>Never</strong> respond defensively, sarcastically, or emotionally — even if the response is unreasonable. Immediately remove from ALL lists (active + nurture). Do not add to any future campaigns. Screenshot and log if the response contains threats for your records.</div>
+      </div>
+    </div>
+
+    <!-- ── 13. Out of Office ── -->
+    <div class="pb-card" data-cat="ooo">
+      <div class="pb-card-hdr">
+        <h3>Out of Office — Auto-Reply</h3>
+        <span class="pb-badge badge-gray">Low Priority</span>
+        <span class="pb-badge badge-gray">No immediate reply</span>
+        <div class="pb-card-meta">They sent: An automated OOO message with a return date.<br>Goal: Do NOT reply to the auto-reply. Set a calendar reminder for their return date + 1 day, then send a fresh message.</div>
+      </div>
+      <div class="pb-scripts">
+        <div class="pb-sender-tog">
+          <button class="pb-sbtn on" onclick="setPbSender('ooo','aj',this)">AJ</button>
+          <button class="pb-sbtn" onclick="setPbSender('ooo','nathan',this)">Nathan</button>
+        </div>
+        <div class="pb-script-label">Message to send on their return date + 1 day</div>
+        <div class="pb-script-box" data-cat="ooo" data-variant="aj" data-channel="li">Hey %%first_name%% — hope you had a good break. Sent you a message while you were out, thought I'd resurface it now you're back.
+
+[Paste your original message or a shorter version of it]<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+        <div class="pb-script-box" data-cat="ooo" data-variant="nathan" data-channel="li" style="display:none">Hey %%first_name%% — hope you had a good break. I reached out while you were away, just wanted to resurface it now you're back.
+
+[Paste your original message or a shorter version of it]<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
+      </div>
+      <div class="pb-tip info">
+        <span class="pb-tip-icon">💡</span>
+        <div><strong>Process:</strong> 1) Note their return date from the OOO. 2) Set a calendar reminder for return date + 1 business day. 3) Do NOT reply to the auto-reply itself. 4) When you follow up, reference your original message but keep it fresh — don't just forward the old one.</div>
+      </div>
+    </div>
+
+  </div><!-- /pbCards -->
+
+  <!-- ── Follow-Up Master Cadence ── -->
+  <div class="pb-rules" style="margin-top:32px;">
+    <h3>Master Follow-Up Cadence — When a Warm Lead Goes Quiet</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Use this for any prospect who showed interest (positive, curious, pricing, send-info) but stopped responding. 50–70% of all responses come from follow-ups — most reps quit after 1–2 attempts.</p>
+    <div style="display:flex;flex-direction:column;gap:0;">
+      <div class="pb-tl-item"><div class="pb-tl-dot">1</div><div class="pb-tl-content"><strong>Nudge 1 — 2–3 business days</strong><br><span>Same channel they replied on. Reference their interest + add new value. "Hey %%first_name%% — just wanted to follow up on our chat. [Add one new piece of value: a relevant case study, stat, or observation about their business.]"</span></div></div>
+      <div class="pb-tl-item"><div class="pb-tl-dot">2</div><div class="pb-tl-content"><strong>Nudge 2 — 3–4 days later</strong><br><span>Switch channels (LinkedIn → email or vice versa). Share a specific case study relevant to their ICP. "Thought this might be useful — [client name] was in a similar spot at %%company%%."</span></div></div>
+      <div class="pb-tl-item"><div class="pb-tl-dot">3</div><div class="pb-tl-content"><strong>Nudge 3 — 5–7 days later</strong><br><span>LinkedIn voice note or phone call. Brief, personal check-in — voice cuts through noise better than text. Keep it under 30 seconds.</span></div></div>
+      <div class="pb-tl-item"><div class="pb-tl-dot">4</div><div class="pb-tl-content"><strong>Breakup — 2 weeks later</strong><br><span>Final message with open door: "Hey %%first_name%% — I don't want to be a pest. If the timing's shifted, totally understand. If design ever becomes a priority at %%company%%, here's where to find us: designbees.com.au/pricing-cards. Wishing you all the best."</span></div></div>
+      <div class="pb-tl-item"><div class="pb-tl-dot" style="background:var(--green-lt);color:var(--green);">∞</div><div class="pb-tl-content"><strong>Nurture — Monthly/Quarterly</strong><br><span>Like and comment on their LinkedIn posts. Share value-based content (not sales). Stay visible without being pushy. This is where long-term deals come from.</span></div></div>
+    </div>
+    <div class="pb-tip warn" style="margin:16px 0 0;">
+      <span class="pb-tip-icon">⚠️</span>
+      <div><strong>Never say:</strong> "Just checking in" / "Did you get my message?" / "I haven't heard back." Always add value — a relevant insight, case study, or observation about their business. Enterprise prospects ghost quickly and punish persistence; SMBs tolerate more follow-ups.</div>
+    </div>
+  </div>
+
+  <!-- ══════════ REPLY COMPOSER ══════════ -->
+  <div class="rc-wrap" id="replyComposer">
+    <h3 class="rc-title">Reply Composer</h3>
+    <p class="rc-subtitle">Paste what the lead said, select your ICP and sender — get a ready-to-send response.</p>
+
+    <div class="rc-form">
+      <!-- Lead's message input -->
+      <div class="rc-field">
+        <label class="rc-label">What did they say?</label>
+        <textarea class="rc-input" id="rcInput" rows="3" placeholder="Paste the lead's reply here..."></textarea>
+      </div>
+
+      <!-- Controls row -->
+      <div class="rc-controls">
+        <div class="rc-field rc-field-sm">
+          <label class="rc-label">ICP</label>
+          <div class="rc-pills" id="rcIcpPills">
+            <button class="rc-pill on" onclick="rcSetIcp('icp1',this)">Marketing Hire</button>
+            <button class="rc-pill" onclick="rcSetIcp('icp2',this)">Founder</button>
+            <button class="rc-pill" onclick="rcSetIcp('icp3',this)">Agency</button>
+          </div>
+        </div>
+        <div class="rc-field rc-field-sm">
+          <label class="rc-label">Sender</label>
+          <div class="rc-pills" id="rcSenderPills">
+            <button class="rc-pill on" onclick="rcSetSender('aj',this)">AJ</button>
+            <button class="rc-pill" onclick="rcSetSender('nathan',this)">Nathan</button>
+          </div>
+        </div>
+        <div class="rc-field rc-field-sm">
+          <label class="rc-label">Channel</label>
+          <div class="rc-pills" id="rcChannelPills">
+            <button class="rc-pill on" onclick="rcSetChannel('linkedin',this)">LinkedIn</button>
+            <button class="rc-pill" onclick="rcSetChannel('email',this)">Email</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="rc-generate" onclick="rcGenerate()">Generate Response</button>
+    </div>
+
+    <!-- Detection result -->
+    <div class="rc-result" id="rcResult" style="display:none;">
+      <div class="rc-detected" id="rcDetected">
+        <div class="rc-detected-row">
+          <span class="rc-detected-label">Detected category:</span>
+          <span class="rc-detected-cat" id="rcCatName"></span>
+          <span class="rc-detected-conf" id="rcConf"></span>
+        </div>
+        <div class="rc-override">
+          <span class="rc-detected-label">Wrong? Override:</span>
+          <select class="rc-select" id="rcOverride" onchange="rcOverrideCategory()">
+            <option value="">— Auto-detected —</option>
+            <option value="positive">Positive Interest</option>
+            <option value="curious">Curious / Questions</option>
+            <option value="pricing">Pricing Question</option>
+            <option value="sendinfo">"Send Me Info"</option>
+            <option value="referral">Referral</option>
+            <option value="existing">Already Have a Designer</option>
+            <option value="notnow">"Not Right Now"</option>
+            <option value="notnow_tl">"Not Now" + Timeline</option>
+            <option value="inhouse">Handle It In-House</option>
+            <option value="triedbefore">Tried This Before</option>
+            <option value="negative">Not Interested</option>
+            <option value="hostile">Angry / Hostile</option>
+            <option value="ooo">Out of Office</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="rc-output-label">Your response <span style="color:var(--muted);font-weight:400;">(edit freely, then copy)</span></div>
+      <div class="rc-output-wrap">
+        <textarea class="rc-output" id="rcOutput" rows="8"></textarea>
+        <button class="rc-copy-btn" id="rcCopyBtn" onclick="rcCopyOutput()">Copy</button>
+      </div>
+
+      <div class="rc-tip-row" id="rcTip"></div>
+    </div>
+  </div>
+
+</div><!-- /pb-section -->
+
+<script>
+// ── Playbook interactivity ──
+function showCat(cat, el) {
+  document.querySelectorAll('.pb-cat-tab').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+  document.querySelectorAll('.pb-card').forEach(c => {
+    c.classList.toggle('show', c.dataset.cat === cat);
+  });
+}
+
+function setPbSender(cat, who, el) {
+  // Toggle sender buttons within this card
+  const card = el.closest('.pb-card');
+  card.querySelectorAll('.pb-sbtn').forEach((b, i) => {
+    b.classList.toggle('on', (who === 'aj' && i === 0) || (who === 'nathan' && i === 1));
+  });
+  // Toggle script boxes
+  card.querySelectorAll('.pb-script-box').forEach(box => {
+    if (box.dataset.variant === who) {
+      box.style.display = '';
+    } else {
+      box.style.display = 'none';
+    }
+  });
+}
+
+function pbCopy(btn) {
+  const box = btn.parentElement;
+  // Get text content excluding the button text
+  const clone = box.cloneNode(true);
+  clone.querySelector('.pb-copy').remove();
+  const txt = clone.textContent.trim();
+  navigator.clipboard.writeText(txt).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('done');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1500);
+  });
+}
+
+// ══════════════════════════════════════════════
+// Reply Composer — keyword detection + templates
+// ══════════════════════════════════════════════
+
+let rcIcp = 'icp1';
+let rcSender = 'aj';
+let rcChannel = 'linkedin';
+let rcDetectedCat = null;
+
+function rcSetIcp(v, el) {
+  rcIcp = v;
+  el.parentElement.querySelectorAll('.rc-pill').forEach(p => p.classList.remove('on'));
+  el.classList.add('on');
+}
+function rcSetSender(v, el) {
+  rcSender = v;
+  el.parentElement.querySelectorAll('.rc-pill').forEach(p => p.classList.remove('on'));
+  el.classList.add('on');
+}
+function rcSetChannel(v, el) {
+  rcChannel = v;
+  el.parentElement.querySelectorAll('.rc-pill').forEach(p => p.classList.remove('on'));
+  el.classList.add('on');
+}
+
+// ── Keyword rules (order = priority) ──
+const RC_RULES = [
+  { cat:'ooo',        name:'Out of Office',             keywords:['out of office','ooo','away from','on leave','on holiday','on vacation','returning','back on','be back','maternity','paternity','annual leave'], conf:'high' },
+  { cat:'hostile',    name:'Angry / Hostile',            keywords:['spam','stop emailing','stop messaging','report','block','f*** off','piss off','scam','annoying','harassment','unsubscribe','get lost','leave me alone'], conf:'high' },
+  { cat:'negative',   name:'Not Interested',             keywords:['not interested','no thanks','no thank you','not for us','pass on this','remove me','don\'t contact','please stop','no need','we\'re good','all set','we\'re all good','hard pass'], conf:'high' },
+  { cat:'referral',   name:'Referral',                   keywords:['talk to','speak to','reach out to','contact our','try our','you should speak','let me connect','I\'ll introduce','cc\'ing','loop in','forward this to','the right person is','better person to talk'], conf:'high' },
+  { cat:'triedbefore',name:'Tried This Before',          keywords:['tried','design pickle','kimp','penji','we used','didn\'t work','bad experience','burned','burnt','before and it','similar service','unlimited design','overseas','offshore','last time'], conf:'medium' },
+  { cat:'existing',   name:'Already Have a Designer',    keywords:['already have','already work with','have a designer','have an agency','current agency','existing designer','covered','sorted','we use','our agency','happy with our','just signed','under contract','in-house designer'], conf:'high' },
+  { cat:'inhouse',    name:'Handle It In-House',         keywords:['in house','in-house','do it ourselves','handle it ourselves','canva','our team does','i do it','myself','internal team','marketing team handles','my assistant','we manage','DIY','do it myself'], conf:'medium' },
+  { cat:'notnow_tl',  name:'"Not Now" + Timeline',       keywords:['next quarter','next month','next year','after','in q1','in q2','in q3','in q4','in january','in february','in march','in april','in may','in june','in july','in august','in september','in october','in november','in december','end of','beginning of','start of','once we','when we launch','after our','mid-year','by the time','in a few months','in a couple of months','after the rebrand','post-launch'], conf:'high' },
+  { cat:'notnow',     name:'"Not Right Now"',            keywords:['not right now','not the right time','bad timing','too busy','maybe later','check back','circle back','not now','come back','down the road','revisit','some other time','another time','not a priority','not yet','not at this stage','in the future'], conf:'high' },
+  { cat:'pricing',    name:'Pricing Question',           keywords:['how much','cost','price','pricing','rates','fee','budget','afford','expensive','cheap','what do you charge','per month','monthly','investment','what\'s the damage','ballpark'], conf:'high' },
+  { cat:'sendinfo',   name:'"Send Me Info"',             keywords:['send me','send info','send details','more info','email me','send through','send over','brochure','one-pager','deck','portfolio','have a look','i\'ll review','i\'ll take a look','let me look','share some'], conf:'medium' },
+  { cat:'positive',   name:'Positive Interest',          keywords:['let\'s chat','let\'s talk','sounds good','sounds great','sounds interesting','i\'m interested','interested','love to','keen','book','schedule','set up a call','jump on a call','happy to chat','open to','let\'s connect','absolutely','sure thing','count me in','sign me up','yes','yeah','yep','definitely','let\'s do it','i\'d love to','when can we','free for a call','sounds like a fit'], conf:'high' },
+  { cat:'curious',    name:'Curious / Questions',        keywords:['how does','what do you','can you','tell me','what kind','what type','explain','how do','what\'s the process','what exactly','more about','how would','what if','do you do','does this include','what\'s included','turnaround','how long','how fast','what about','wondering','curious','question'], conf:'medium' },
+];
+
+// ── ICP-specific context for templates ──
+const RC_CTX = {
+  icp1: {
+    label: 'Marketing Hire',
+    painPoint: 'marketing team buried in Canva and chasing freelancers',
+    priceFrom: '$995/month',
+    persona: 'marketing managers',
+    roleContext: 'marketing teams your size',
+  },
+  icp2: {
+    label: 'Founder',
+    painPoint: 'founders doing their own design in Canva',
+    priceFrom: '$545/month',
+    persona: 'founders',
+    roleContext: 'founders at your stage',
+  },
+  icp3: {
+    label: 'Agency',
+    painPoint: 'agencies hitting a design bottleneck that stops them taking on more clients',
+    priceFrom: '$995/month',
+    persona: 'agencies',
+    roleContext: 'agencies your size',
+  }
+};
+
+// ── Response templates per category × sender × channel ──
+const RC_TEMPLATES = {
+  positive: {
+    aj: {
+      linkedin: `Love to hear it %%first_name%% — let's make it easy. Here's a link to grab 15 minutes, I'll walk you through exactly how it works for %%company%%:\n\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nIf none of those times work, just tell me what suits and I'll make it happen.`,
+      email: `Hi %%first_name%%,\n\nGreat — let's make it easy. Here's a link to grab 15 minutes:\n\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nI'll walk you through exactly how it works and we can figure out if it's a fit for %%company%%. If none of those times work, just reply with what suits.\n\nCheers,\nAJ`,
+    },
+    nathan: {
+      linkedin: `Great to hear %%first_name%% — let's lock something in. Here's a link to grab 15 minutes and I'll walk you through how it'd work for %%company%%:\n\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nIf none of those times suit, just let me know what works and I'll sort it out.`,
+      email: `Hi %%first_name%%,\n\nGreat to hear — let's lock something in. Here's a link to grab 15 minutes:\n\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nI'll walk you through how it'd work for %%company%% and we can see if it's a good fit. If none of those times suit, just let me know.\n\nCheers,\nNathan`,
+    }
+  },
+  curious: {
+    aj: {
+      linkedin: `Great question — [answer their specific question in 1–2 sentences].\n\nEasiest way to see if it's a fit for %%company%% is a quick 15-min call — I can tailor it to what you actually need: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nOr if you'd rather look first: designbees.com.au/pricing-cards`,
+      email: `Hi %%first_name%%,\n\nGreat question — [answer their specific question in 1–2 sentences].\n\nEasiest way to see if it's a fit for %%company%% is a quick 15-min call — I can tailor it to what you actually need:\n\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nOr here's our pricing if you'd prefer to look first: https://www.designbees.com.au/pricing-cards\n\nCheers,\nAJ`,
+    },
+    nathan: {
+      linkedin: `Good question — [answer their specific question in 1–2 sentences].\n\nHappy to jump on a quick 15-min call to walk through the details properly — I can tailor it to %%company%%: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nOr here's the pricing breakdown if you'd prefer to have a look first: designbees.com.au/pricing-cards`,
+      email: `Hi %%first_name%%,\n\nGood question — [answer their specific question in 1–2 sentences].\n\nHappy to jump on a quick 15-min call to walk through the details properly:\n\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nOr here's the full pricing breakdown: https://www.designbees.com.au/pricing-cards\n\nCheers,\nNathan`,
+    }
+  },
+  pricing: {
+    aj: {
+      linkedin: (ctx) => `Good question — plans start at ${ctx.priceFrom} for a dedicated designer. Goes up to $2,645/month for higher volume. All plans include unlimited revisions, no lock-in, and a 10-day free trial.\n\nFull breakdown here: designbees.com.au/pricing-cards\n\nHappy to jump on a quick call to figure out which plan makes sense for %%company%%: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation`,
+      email: (ctx) => `Hi %%first_name%%,\n\nGood question — plans start at ${ctx.priceFrom} for a dedicated designer, up to $2,645/month for higher volume. Unlimited revisions, no lock-in, and a 10-day free trial.\n\nFull breakdown: https://www.designbees.com.au/pricing-cards\n\nHappy to jump on a quick call to figure out which plan makes sense for %%company%%:\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nAJ`,
+    },
+    nathan: {
+      linkedin: (ctx) => `Great question — plans start at ${ctx.priceFrom} for a dedicated designer, up to $2,645/month for higher volume. Unlimited revisions, no lock-in, and we run a free 10-day trial so you can test it properly.\n\nHere's the full breakdown: designbees.com.au/pricing-cards\n\nHappy to jump on 15 minutes to figure out which plan fits %%company%%: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation`,
+      email: (ctx) => `Hi %%first_name%%,\n\nGreat question — plans start at ${ctx.priceFrom} for a dedicated designer, up to $2,645/month for higher volume. Unlimited revisions, no lock-in, and a free 10-day trial.\n\nHere's the full breakdown: https://www.designbees.com.au/pricing-cards\n\nHappy to jump on 15 minutes to figure out which plan fits %%company%%:\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nNathan`,
+    }
+  },
+  sendinfo: {
+    aj: {
+      linkedin: `Sure thing — here's everything in one spot: designbees.com.au/pricing-cards\n\nQuick question before I leave you to it — what's the main thing eating your time on design right now? That way I can point you to the most relevant stuff.\n\nHappy to jump on a quick call too if that's easier: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation`,
+      email: `Hi %%first_name%%,\n\nSure thing — here's the full rundown:\nhttps://www.designbees.com.au/pricing-cards\n\nQuick question — what's the main thing eating your time on design right now? That way I can point you to the most relevant case study.\n\nOr if a quick call is easier: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nAJ`,
+    },
+    nathan: {
+      linkedin: `Of course — here's the full rundown: designbees.com.au/pricing-cards\n\nQuick question — what's the biggest design headache at %%company%% right now? Happy to point you to the most relevant case study.\n\nOr if you'd prefer to chat through it, here's my calendar: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation`,
+      email: `Hi %%first_name%%,\n\nOf course — here's the full rundown:\nhttps://www.designbees.com.au/pricing-cards\n\nQuick question — what's the biggest design headache at %%company%% right now? Happy to point you to the most relevant info.\n\nOr if a quick chat is easier: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nNathan`,
+    }
+  },
+  referral: {
+    aj: {
+      linkedin: `Really appreciate that %%first_name%% — would you be open to making a quick intro? Happy to keep it short and low-pressure for them.\n\nIf it's easier, I can just mention your name when I reach out directly. Whatever works best.`,
+      email: `Hi %%first_name%%,\n\nReally appreciate the pointer — would you be open to making a quick intro? Happy to keep it short and low-pressure for them.\n\nAlternatively, I can reach out directly and mention you pointed me their way. Whatever's easiest.\n\nCheers,\nAJ`,
+    },
+    nathan: {
+      linkedin: `Appreciate the pointer %%first_name%% — would you be open to a quick intro? I'll keep it brief and easy for them.\n\nAlternatively, happy to reach out directly and mention you pointed me their way. Whatever's easiest on your end.`,
+      email: `Hi %%first_name%%,\n\nAppreciate the pointer — would you be open to a quick intro? I'll keep it brief and easy for them.\n\nAlternatively, I can reach out directly and mention you suggested I get in touch. Whatever suits.\n\nCheers,\nNathan`,
+    }
+  },
+  existing: {
+    aj: {
+      linkedin: (ctx) => `Good to hear you've got that covered %%first_name%%. Out of curiosity — are they handling everything, or do you still end up with overflow that takes longer than it should?\n\nA few of the ${ctx.persona} we work with use us alongside their main designer for the stuff that piles up — social content, decks, one-off assets. Flat monthly fee, no contracts, easy to spin up.\n\nNo pressure either way — just figured it was worth mentioning.`,
+      email: (ctx) => `Hi %%first_name%%,\n\nGood to hear you've got that covered. Out of curiosity — are they handling everything, or do you still end up with overflow that takes longer than it should?\n\nA few of the ${ctx.persona} we work with use us alongside their main designer for the stuff that piles up. Flat monthly fee from ${ctx.priceFrom}, no contracts.\n\nNo pressure — just thought it was worth putting on your radar.\n\nCheers,\nAJ`,
+    },
+    nathan: {
+      linkedin: (ctx) => `Good to hear %%first_name%% — always better to have someone in place. Quick question though — are they across everything, or do you find some things still pile up or take longer than they should?\n\nA few of our clients actually use us as a second pair of hands alongside their main designer — for the overflow stuff like social content, pitch decks, one-off assets. Flat monthly fee, no lock-in.\n\nNo pressure at all — just thought it might be relevant.`,
+      email: (ctx) => `Hi %%first_name%%,\n\nGood to hear you've got someone in place. Quick question — are they across everything, or do some things still pile up?\n\nA few of our clients use us as a second pair of hands alongside their main designer — for overflow like social content, decks, one-off assets. Flat monthly fee from ${ctx.priceFrom}, no lock-in.\n\nNo pressure — just thought it might be worth knowing about.\n\nCheers,\nNathan`,
+    }
+  },
+  notnow: {
+    aj: {
+      linkedin: `Totally understand %%first_name%% — timing is everything. Mind if I check back in a couple of months? No pitch, just a quick check-in to see if anything's shifted.\n\nHappy to stay connected in the meantime.`,
+      email: `Hi %%first_name%%,\n\nTotally understand — timing is everything. Mind if I check back in a couple of months? No pitch, just a quick check-in.\n\nHappy to stay connected in the meantime.\n\nCheers,\nAJ`,
+    },
+    nathan: {
+      linkedin: `Makes total sense %%first_name%% — no rush at all. Would it be alright if I circled back in a couple of months? No pitch, just a quick check-in.\n\nHappy to stay connected in the meantime.`,
+      email: `Hi %%first_name%%,\n\nMakes total sense — no rush at all. Would it be alright if I circled back in a couple of months? No pitch, just a quick check-in.\n\nHappy to stay connected in the meantime.\n\nCheers,\nNathan`,
+    }
+  },
+  notnow_tl: {
+    aj: {
+      linkedin: `Makes total sense %%first_name%%. I'll set a reminder to drop you a message in [their timeframe]. No pitch — just a check-in to see if the timing's better.\n\nIn the meantime, here's our pricing if you want to have it handy: designbees.com.au/pricing-cards\n\nGood luck with [whatever they mentioned].`,
+      email: `Hi %%first_name%%,\n\nMakes total sense. I'll set a reminder to check back in [their timeframe]. No pitch — just a quick ping.\n\nIn the meantime, here's our pricing if it's useful: https://www.designbees.com.au/pricing-cards\n\nGood luck with [whatever they mentioned].\n\nCheers,\nAJ`,
+    },
+    nathan: {
+      linkedin: `Completely understand %%first_name%% — I'll pop a reminder in for [their timeframe] and check back then. No pressure, just a quick ping.\n\nHere's our pricing in the meantime if it's useful to have: designbees.com.au/pricing-cards\n\nGood luck with [whatever they mentioned].`,
+      email: `Hi %%first_name%%,\n\nCompletely understand — I'll pop a reminder in for [their timeframe] and check back then. No pressure.\n\nHere's our pricing in the meantime: https://www.designbees.com.au/pricing-cards\n\nGood luck with [whatever they mentioned].\n\nCheers,\nNathan`,
+    }
+  },
+  inhouse: {
+    aj: {
+      linkedin: (ctx) => `Fair enough %%first_name%% — most ${ctx.persona} at your stage are. Canva gets the job done but it eats hours you probably can't afford.\n\nOne of the ${ctx.persona} we work with was in the same spot — spending hours on it every week. Now they just send briefs and get designs back same day. ${ctx.priceFrom}, dedicated designer, no contracts.\n\nNo pressure at all — just figured it was worth putting on your radar for when the bottleneck hits.`,
+      email: (ctx) => `Hi %%first_name%%,\n\nFair enough — most ${ctx.persona} at your stage are handling it themselves. Canva gets the job done, but it eats hours.\n\nOne of the ${ctx.persona} we work with was in the same spot — now they just send briefs and get designs back same day. ${ctx.priceFrom}, dedicated designer, no contracts.\n\nNo pressure — just figured it was worth knowing about.\n\nCheers,\nAJ`,
+    },
+    nathan: {
+      linkedin: (ctx) => `That's how most ${ctx.persona} at your stage handle it %%first_name%% — totally normal. The question is whether it's the best use of your time.\n\nOne of the ${ctx.persona} we work with was in the same spot — spending hours on it every week. Now they just send briefs and get designs back same day. ${ctx.priceFrom}, dedicated designer, no contracts.\n\nNo pressure — just thought it might be worth knowing about for when the to-do list gets too long.`,
+      email: (ctx) => `Hi %%first_name%%,\n\nThat's how most ${ctx.persona} at your stage handle it — totally normal. The question is whether it's the best use of your time.\n\nOne of the ${ctx.persona} we work with was in the same spot — now they just send briefs and get designs back same day. ${ctx.priceFrom}, dedicated designer, no contracts.\n\nNo pressure — just thought it was worth knowing about.\n\nCheers,\nNathan`,
+    }
+  },
+  triedbefore: {
+    aj: {
+      linkedin: `I hear that a lot actually — Design Pickle and Kimp come up often. The main difference our clients mention is having a dedicated designer who actually learns your brand, so you stop re-briefing from scratch every time.\n\nA few of our clients had the exact same experience before switching. Dedicated designer, same-day turnaround, no re-briefs.\n\nHappy to share a case study if you'd like to see the details. No pressure either way.`,
+      email: `Hi %%first_name%%,\n\nI hear that a lot — Design Pickle and Kimp come up often. The main difference our clients mention is a dedicated designer who actually learns your brand, so you stop re-briefing every time.\n\nA few of our clients had the same experience before switching — dedicated designer, same-day turnaround, brand consistency from day one.\n\nHappy to share a case study if it'd help.\n\nCheers,\nAJ`,
+    },
+    nathan: {
+      linkedin: `Totally understand — and honestly, that's a fair concern. The big difference comes down to a dedicated designer who actually learns your brand vs. a revolving door of people you have to re-brief every time.\n\nA few of our clients were in the exact same spot — tried other services before finding us. Dedicated designer, same-day turnaround, no re-briefs.\n\nHappy to send through a case study if it'd help. Zero pressure.`,
+      email: `Hi %%first_name%%,\n\nTotally understand — that's a fair concern. The big difference is a dedicated designer who learns your brand vs. re-briefing someone new every time.\n\nA few of our clients were in the exact same spot — dedicated designer, same-day turnaround, brand consistency from day one.\n\nHappy to share a case study if it'd help.\n\nCheers,\nNathan`,
+    }
+  },
+  negative: {
+    aj: {
+      linkedin: `Appreciate you letting me know %%first_name%%. No worries at all — wishing you and %%company%% all the best.`,
+      email: `Hi %%first_name%%,\n\nAppreciate you letting me know — no worries at all. Wishing you and %%company%% all the best.\n\nCheers,\nAJ`,
+    },
+    nathan: {
+      linkedin: `Totally understand %%first_name%% — thanks for letting me know. Wishing you and the team all the best.`,
+      email: `Hi %%first_name%%,\n\nTotally understand — thanks for letting me know. Wishing you and the team all the best.\n\nCheers,\nNathan`,
+    }
+  },
+  hostile: {
+    aj: {
+      linkedin: `Apologies for the inconvenience. I've removed you from our list — you won't hear from us again.`,
+      email: `Hi %%first_name%%,\n\nApologies for the inconvenience. I've removed you from our list — you won't hear from us again.\n\nCheers,\nAJ`,
+    },
+    nathan: {
+      linkedin: `Apologies for the bother. I've removed you from our list — you won't hear from us again.`,
+      email: `Hi %%first_name%%,\n\nApologies for the bother. I've removed you from our list — you won't hear from us again.\n\nCheers,\nNathan`,
+    }
+  },
+  ooo: {
+    aj: {
+      linkedin: `Hey %%first_name%% — hope you had a good break. Sent you a message while you were out, thought I'd resurface it now you're back.\n\n[Paste your original message or a shorter version of it]`,
+      email: `Hi %%first_name%%,\n\nHope you had a good break. I reached out while you were away — just wanted to resurface it now you're back.\n\n[Paste your original message or a shorter version of it]\n\nCheers,\nAJ`,
+    },
+    nathan: {
+      linkedin: `Hey %%first_name%% — hope you had a good break. I reached out while you were away, just wanted to resurface it now you're back.\n\n[Paste your original message or a shorter version of it]`,
+      email: `Hi %%first_name%%,\n\nHope you had a good break. I reached out while you were away — thought I'd resurface it now you're back.\n\n[Paste your original message or a shorter version of it]\n\nCheers,\nNathan`,
+    }
+  },
+};
+
+// ── Tips per category ──
+const RC_TIPS = {
+  positive: '⚡ If they don\'t book within 24 hours, nudge on the OTHER channel with the calendar link.',
+  curious: '💡 Include ONE qualifying question to keep the conversation alive if they don\'t book right away.',
+  pricing: '💡 If they say "too expensive" — use Feel-Felt-Found: "A few founders felt the same — then they mapped out what they were spending on Canva + freelancers + their own time."',
+  sendinfo: '💡 Follow up in 3–5 days: "Hey %%first_name%% — did you get a chance to look? Happy to answer anything."',
+  referral: '💡 When reaching out to the referred person, mention who pointed you their way — referral outreach converts at 3–5x cold.',
+  existing: '⚠️ Never badmouth their current provider. If they\'re happy, exit gracefully and add to quarterly nurture.',
+  notnow: '💡 Set a calendar reminder for 8 weeks out. When you follow up, reference the original conversation.',
+  notnow_tl: '⚠️ Set the calendar reminder NOW. Follow up 1–2 days before their stated timeline. Reference their specific situation.',
+  inhouse: '💡 For founders: reframe around time cost. For marketing managers: reframe around "that\'s not what they were hired to do."',
+  triedbefore: '💡 Key differentiators: dedicated (not rotating) designer, Australian-managed, same-day turnaround, brand consistency, free trial.',
+  negative: '⚠️ Immediately remove from all active sequences. Add to quarterly nurture list (value content only, no sales).',
+  hostile: '⚠️ Remove from ALL lists. Do not add to any future campaigns. Screenshot if response contains threats.',
+  ooo: '💡 Don\'t reply to the auto-reply. Set a reminder for their return date + 1 business day, then send a fresh message.',
+};
+
+// ── Category display names ──
+const RC_CAT_NAMES = {
+  positive:'Positive Interest', curious:'Curious / Questions', pricing:'Pricing Question',
+  sendinfo:'"Send Me Info"', referral:'Referral', existing:'Already Have a Designer',
+  notnow:'"Not Right Now"', notnow_tl:'"Not Now" + Timeline', inhouse:'Handle It In-House',
+  triedbefore:'Tried This Before', negative:'Not Interested', hostile:'Angry / Hostile', ooo:'Out of Office',
+};
+
+// ── Detect category from input text ──
+function rcDetect(text) {
+  const lower = text.toLowerCase();
+  let best = null;
+  let bestScore = 0;
+  for (const rule of RC_RULES) {
+    let score = 0;
+    for (const kw of rule.keywords) {
+      if (lower.includes(kw)) score++;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = rule;
+    }
+  }
+  if (!best || bestScore === 0) return { cat:'curious', name:'Curious / Questions', conf:'low' };
+  const conf = bestScore >= 3 ? 'high' : bestScore >= 2 ? 'high' : best.conf;
+  return { cat:best.cat, name:best.name, conf };
+}
+
+// ── Generate response ──
+function rcGenerate() {
+  const input = document.getElementById('rcInput').value.trim();
+  if (!input) {
+    document.getElementById('rcInput').focus();
+    return;
+  }
+
+  const detected = rcDetect(input);
+  rcDetectedCat = detected.cat;
+  document.getElementById('rcOverride').value = '';
+
+  rcShowResult(detected.cat, detected.name, detected.conf);
+}
+
+function rcShowResult(cat, name, conf) {
+  const ctx = RC_CTX[rcIcp];
+  const tpl = RC_TEMPLATES[cat]?.[rcSender]?.[rcChannel];
+  if (!tpl) return;
+
+  const response = typeof tpl === 'function' ? tpl(ctx) : tpl;
+
+  document.getElementById('rcCatName').textContent = name;
+  const confEl = document.getElementById('rcConf');
+  confEl.textContent = conf === 'high' ? 'High confidence' : conf === 'medium' ? 'Medium confidence' : 'Low confidence — review category';
+  confEl.className = 'rc-detected-conf ' + conf;
+
+  document.getElementById('rcOutput').value = response;
+  document.getElementById('rcTip').innerHTML = RC_TIPS[cat] ? `<span style="font-size:15px;flex-shrink:0;">${RC_TIPS[cat].charAt(0) === '⚠' ? '⚠️' : '💡'}</span><span>${RC_TIPS[cat].substring(RC_TIPS[cat].indexOf(' ')+1)}</span>` : '';
+
+  document.getElementById('rcResult').style.display = '';
+
+  // Reset copy button
+  const btn = document.getElementById('rcCopyBtn');
+  btn.textContent = 'Copy';
+  btn.classList.remove('done');
+}
+
+function rcOverrideCategory() {
+  const sel = document.getElementById('rcOverride').value;
+  if (!sel) {
+    // Reset to auto-detected
+    if (rcDetectedCat) {
+      const det = RC_RULES.find(r => r.cat === rcDetectedCat);
+      rcShowResult(rcDetectedCat, det ? det.name : RC_CAT_NAMES[rcDetectedCat], 'high');
+    }
+    return;
+  }
+  rcShowResult(sel, RC_CAT_NAMES[sel], 'high');
+}
+
+function rcCopyOutput() {
+  const txt = document.getElementById('rcOutput').value;
+  const btn = document.getElementById('rcCopyBtn');
+  navigator.clipboard.writeText(txt).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('done');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1500);
+  });
+}
+</script>
+
+</body>
+</html>
