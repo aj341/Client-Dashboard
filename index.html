@@ -112,7 +112,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
     <div class="hdr-right">
       <span class="stale-ctl" title="Trello's 'Card Aging' fade isn't exposed by the API — this approximates it using days since last activity. Tune it to match what you see as greyed-out on the board.">
         Hide inactive &gt;
-        <input id="staleDays" type="number" min="1" value="14" onchange="setStaleDays(this.value)">
+        <input id="staleDays" type="number" min="1" value="2" onchange="setStaleDays(this.value)">
         days
       </span>
       <input id="clientSelect" class="client-search" list="labelOptions" placeholder="Choose a client from the dropdown menu…" oninput="onSearchInput(this.value)">
@@ -155,7 +155,7 @@ const ALL_LISTS = { ...LISTS, ...EXTRA_SEARCH_LISTS };
 const PROXY_BASE_URL = 'https://trello-dashboard-proxy.aj-9cf.workers.dev';
 
 const REFRESH_MS = 60000;
-const DEFAULT_STALE_DAYS = 14;
+const DEFAULT_STALE_DAYS = 2;
 
 let currentView = 'working';
 let cache = {};
