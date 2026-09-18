@@ -85,6 +85,8 @@ a:hover{color:var(--ink)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(282px,1fr));gap:14px}
 .card{background:var(--card-bg);border:1px solid var(--border);border-left:3px solid var(--border-strong);border-radius:12px;padding:15px 17px;box-shadow:var(--shadow);position:relative;display:flex;flex-direction:column;gap:11px;transition:box-shadow .18s,transform .18s}
 .card:hover{box-shadow:var(--shadow-lift);transform:translateY(-1px)}
+.card.clickable{cursor:pointer}
+.card.clickable:hover .card-title{color:var(--purple);text-decoration:underline;text-decoration-color:var(--gold);text-decoration-thickness:2px;text-underline-offset:2px}
 .card.status-working{border-left-color:var(--green)}
 .card.status-assigned{border-left-color:var(--gold)}
 .card.status-review{border-left-color:var(--blue)}
@@ -291,8 +293,8 @@ function membersHtml(card) {
 }
 
 function cardHtml(card, statusClass, listLabel) {
-  return `<div class="card status-${statusClass}">
-    <div class="card-title"><a href="${card.shortUrl}" target="_blank" rel="noopener">${escapeHtml(card.name)}</a></div>
+  return `<div class="card status-${statusClass} clickable" onclick="window.open('${card.shortUrl}','_blank','noopener')">
+    <div class="card-title">${escapeHtml(card.name)}</div>
     <div class="card-meta">
       ${clientChip(card)}
       ${listLabel ? `<span class="chip list">${escapeHtml(listLabel)}</span>` : ''}
