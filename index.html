@@ -37,6 +37,12 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .refresh-btn { padding:7px 14px; border-radius:8px; border:1px solid var(--border); background:#fff; color:var(--purple); cursor:pointer; font-size:12.5px; font-weight:600; }
 .refresh-btn:hover { background:var(--purple-lt); }
 .refresh-btn.spin { opacity:0.6; pointer-events:none; }
+.stale-ctl { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); white-space:nowrap; }
+.stale-ctl input { width:44px; padding:4px 6px; border:1px solid var(--border); border-radius:6px; font-size:12px; }
+
+.search-row { background:#fff; border-bottom:1px solid var(--border); padding:10px 24px; display:flex; align-items:center; gap:10px; position:sticky; top:57px; z-index:49; }
+.search-row input { flex:1; max-width:420px; padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:13px; }
+.search-row input:focus { outline:2px solid var(--purple-lt); border-color:var(--purple); }
 
 .setup { max-width:520px; margin:80px auto; background:#fff; border:1px solid var(--border); border-radius:14px; padding:32px; box-shadow:var(--shadow); }
 .setup h2 { color:var(--purple); font-size:18px; margin-bottom:6px; }
@@ -118,10 +124,24 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
       <button class="tab" data-view="client" onclick="setView('client',this)">7 · Awaiting Client Review</button>
     </div>
     <div class="hdr-right">
+      <span class="stale-ctl" title="Trello's 'Card Aging' fade isn't exposed by the API — this approximates it using days since last activity. Tune it to match what you see as greyed-out on the board.">
+        Hide inactive &gt;
+        <input id="staleDays" type="number" min="1" value="14" onchange="setStaleDays(this.value)">
+        days
+      </span>
+      <span class="stale-ctl" title="Cards whose Client email custom field matches one of these (exact address, or @domain) are hidden from every view. Comma-separated. Saved only in this browser.">
+        Exclude emails
+        <input id="excludeList" style="width:220px" placeholder="e.g. name@gmail.com, yourcompany.com" onchange="setExcludeList(this.value)">
+      </span>
       <span class="refresh-info" id="refreshInfo">—</span>
       <button class="refresh-btn" id="refreshBtn" onclick="loadAll(true)">↻ Refresh</button>
       <button class="refresh-btn" onclick="disconnect()" title="Clear saved credentials">Disconnect</button>
     </div>
+  </div>
+  <div class="search-row">
+    <input id="labelSearch" list="labelOptions" placeholder="Search by client label (e.g. Google, Vivanti Consulting)…" oninput="onSearchInput(this.value)">
+    <datalist id="labelOptions"></datalist>
+    <button class="refresh-btn" id="clearSearchBtn" onclick="clearSearch()" style="display:none">✕ Clear search</button>
   </div>
   <div class="wrap" id="content">
     <div class="loading">Loading board data…</div>
@@ -129,6 +149,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 </div>
 
 <script>
+// The 7 tracked pipeline stages shown as tabs.
 const LISTS = {
   working:  { id: '6767eb93ad96bd8a9c785242', name: '2.2 - Being Designed' },
   assigned: { id: '65694d3b54a5be08d28f529b', name: 'STAGE 2: With Designer' },
@@ -139,12 +160,62 @@ const LISTS = {
   pushed:   { id: '65a4ae916bbe11ac77be2ed3', name: 'STAGE 6: Files Pushed' },
 };
 
+// Extra pipeline stages that aren't their own tab but are included when
+// searching by client label "across all of the stages".
+const EXTRA_SEARCH_LISTS = {
+  scoping:  { id: '65694d3b4a249033d5a9c7bb', name: 'STAGE 1: Scoping' },
+  waiting:  { id: '69167848e061f20b459250cb', name: '2.1 - Waiting For Your Input (On Hold)' },
+  approved: { id: '65ded88d73b12a33e6dcf412', name: 'STAGE 5: Client Approved' },
+  survey:   { id: '65dfc41340a34fc6664b0aa5', name: 'STAGE 7: Client Review Survey' },
+};
+
+const ALL_LISTS = { ...LISTS, ...EXTRA_SEARCH_LISTS };
+
 const REFRESH_MS = 60000;
+const DEFAULT_STALE_DAYS = 14;
+
 let creds = null;
 let currentView = 'working';
 let cache = {};
 let labelMap = {};
+let clientEmailFieldId = null;
 let refreshTimer = null;
+let staleDays = DEFAULT_STALE_DAYS;
+let searchQuery = '';
+let excludedEmails = [];
+let excludedDomains = [];
+
+function loadExcludeList() {
+  const raw = localStorage.getItem('trelloDashExcludeList') || '';
+  applyExcludeList(raw);
+  const el = document.getElementById('excludeList');
+  if (el) el.value = raw;
+}
+
+function setExcludeList(v) {
+  localStorage.setItem('trelloDashExcludeList', v);
+  applyExcludeList(v);
+  render();
+}
+
+function applyExcludeList(raw) {
+  const entries = raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  excludedEmails = entries.filter(e => e.includes('@'));
+  excludedDomains = entries.filter(e => !e.includes('@'));
+}
+
+function loadStaleDays() {
+  const raw = localStorage.getItem('trelloDashStaleDays');
+  staleDays = raw ? Number(raw) || DEFAULT_STALE_DAYS : DEFAULT_STALE_DAYS;
+  const el = document.getElementById('staleDays');
+  if (el) el.value = staleDays;
+}
+
+function setStaleDays(v) {
+  staleDays = Number(v) || DEFAULT_STALE_DAYS;
+  localStorage.setItem('trelloDashStaleDays', String(staleDays));
+  render();
+}
 
 function loadCreds() {
   try {
@@ -191,22 +262,50 @@ function initials(name) {
   return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
 }
 
+function isExcludedEmail(email) {
+  if (!email) return false;
+  const e = email.trim().toLowerCase();
+  if (excludedEmails.includes(e)) return true;
+  return excludedDomains.some(d => e.endsWith('@' + d));
+}
+
+function getClientEmail(card) {
+  if (!clientEmailFieldId || !card.customFieldItems) return null;
+  const item = card.customFieldItems.find(i => i.idCustomField === clientEmailFieldId);
+  return item && item.value ? item.value.text : null;
+}
+
+function isStale(card) {
+  if (!card.dateLastActivity) return false;
+  const ageDays = (Date.now() - new Date(card.dateLastActivity).getTime()) / 86400000;
+  return ageDays > staleDays;
+}
+
+function filterCards(cards) {
+  return (cards || []).filter(c => !isExcludedEmail(getClientEmail(c)) && !isStale(c));
+}
+
 async function loadAll(manual) {
   const btn = document.getElementById('refreshBtn');
   btn.classList.add('spin');
   try {
-    const [labels, ...cardLists] = await Promise.all([
+    const [labels, customFields, ...cardLists] = await Promise.all([
       api(`/boards/${creds.board}/labels`, { fields: 'name,color', limit: 1000 }),
-      ...Object.entries(LISTS).map(([key, l]) =>
+      api(`/boards/${creds.board}/customFields`, {}),
+      ...Object.entries(ALL_LISTS).map(([key, l]) =>
         api(`/lists/${l.id}/cards`, {
           fields: 'name,due,dueComplete,idLabels,shortUrl,dateLastActivity',
           members: 'true',
           member_fields: 'fullName,avatarUrl',
+          customFieldItems: 'true',
         }).then(cards => [key, cards])
       ),
     ]);
     labelMap = {};
     labels.forEach(l => { if (l.name) labelMap[l.id] = l; });
+    populateLabelOptions();
+    const emailField = customFields.find(f => (f.name || '').trim().toLowerCase() === 'client email');
+    clientEmailFieldId = emailField ? emailField.id : null;
     cache = Object.fromEntries(cardLists);
     document.getElementById('refreshInfo').textContent = 'Updated ' + new Date().toLocaleTimeString();
     render();
@@ -255,7 +354,7 @@ function escapeHtml(s) {
 }
 
 function section(title, dotColor, cards, statusClass, listLabel) {
-  cards = cards || [];
+  cards = filterCards(cards);
   const body = cards.length
     ? `<div class="grid">${cards.map(c => cardHtml(c, statusClass, listLabel)).join('')}</div>`
     : `<div class="empty">Nothing here right now.</div>`;
@@ -316,8 +415,56 @@ const VIEWS = {
   },
 };
 
+function populateLabelOptions() {
+  const names = [...new Set(Object.values(labelMap).map(l => l.name).filter(Boolean))].sort();
+  document.getElementById('labelOptions').innerHTML = names.map(n => `<option value="${escapeHtml(n)}">`).join('');
+}
+
+function onSearchInput(v) {
+  searchQuery = v.trim();
+  document.getElementById('clearSearchBtn').style.display = searchQuery ? 'inline-block' : 'none';
+  render();
+}
+
+function clearSearch() {
+  searchQuery = '';
+  document.getElementById('labelSearch').value = '';
+  document.getElementById('clearSearchBtn').style.display = 'none';
+  render();
+}
+
+function cardHasLabelMatch(card, query) {
+  const q = query.toLowerCase();
+  return (card.idLabels || []).some(id => {
+    const l = labelMap[id];
+    return l && l.name && l.name.toLowerCase().includes(q);
+  });
+}
+
+function renderSearch() {
+  const q = searchQuery;
+  const sections = Object.entries(ALL_LISTS).map(([key, l]) => {
+    const matches = filterCards(cache[key]).filter(c => cardHasLabelMatch(c, q));
+    return { key, list: l, matches };
+  }).filter(s => s.matches.length);
+
+  const total = sections.reduce((n, s) => n + s.matches.length, 0);
+  const body = total
+    ? sections.map(s => section(s.list.name, 'var(--purple)', s.matches, 'prep', s.list.name)).join('')
+    : `<div class="empty">No jobs matching "${escapeHtml(q)}" in any active stage.</div>`;
+
+  document.getElementById('content').innerHTML =
+    `<div class="view-title">Client search: "${escapeHtml(q)}"</div>
+     <div class="view-sub">Every job with a matching label, across all pipeline stages — ${total} found.</div>` +
+    body;
+}
+
 function render() {
-  VIEWS[currentView]();
+  if (searchQuery) {
+    renderSearch();
+  } else {
+    VIEWS[currentView]();
+  }
 }
 
 function setView(view, btn) {
@@ -335,6 +482,8 @@ function boot() {
   }
   document.getElementById('setupScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  loadStaleDays();
+  loadExcludeList();
   loadAll();
   clearInterval(refreshTimer);
   refreshTimer = setInterval(() => loadAll(), REFRESH_MS);
