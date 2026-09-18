@@ -40,9 +40,8 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .stale-ctl { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); white-space:nowrap; }
 .stale-ctl input { width:44px; padding:4px 6px; border:1px solid var(--border); border-radius:6px; font-size:12px; }
 
-.search-row { background:#fff; border-bottom:1px solid var(--border); padding:10px 24px; display:flex; align-items:center; gap:10px; position:sticky; top:57px; z-index:49; }
-.search-row input { flex:1; max-width:420px; padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:13px; }
-.search-row input:focus { outline:2px solid var(--purple-lt); border-color:var(--purple); }
+.client-search { width:220px; padding:7px 10px; border:1px solid var(--border); border-radius:8px; font-size:12.5px; }
+.client-search:focus { outline:2px solid var(--purple-lt); border-color:var(--purple); }
 
 .setup { max-width:520px; margin:80px auto; background:#fff; border:1px solid var(--border); border-radius:14px; padding:32px; box-shadow:var(--shadow); }
 .setup h2 { color:var(--purple); font-size:18px; margin-bottom:6px; }
@@ -108,6 +107,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
       <button class="tab" data-view="client" onclick="setView('client',this)">5 · Awaiting Client Review</button>
       <button class="tab" data-view="prep" onclick="setView('prep',this)">6 · Prepping/Packaging</button>
       <button class="tab" data-view="pushed" onclick="setView('pushed',this)">7 · Files Pushed</button>
+      <button class="tab" data-view="clientsearch" onclick="setView('clientsearch',this)">🔍 Client View</button>
     </div>
     <div class="hdr-right">
       <span class="stale-ctl" title="Trello's 'Card Aging' fade isn't exposed by the API — this approximates it using days since last activity. Tune it to match what you see as greyed-out on the board.">
@@ -115,22 +115,12 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
         <input id="staleDays" type="number" min="1" value="14" onchange="setStaleDays(this.value)">
         days
       </span>
-      <span class="stale-ctl" title="Cards whose Client email custom field matches one of these (exact address, or @domain) are hidden from every view. Comma-separated. Saved only in this browser.">
-        Exclude emails
-        <input id="excludeList" style="width:220px" placeholder="e.g. name@gmail.com, yourcompany.com" onchange="setExcludeList(this.value)">
-      </span>
-      <span class="stale-ctl" title="Cards carrying any of these Trello labels are hidden from every view and from search. Comma-separated.">
-        Exclude labels
-        <input id="excludeLabels" style="width:180px" onchange="setExcludeLabels(this.value)">
-      </span>
+      <input id="clientSelect" class="client-search" list="labelOptions" placeholder="Choose a client from the dropdown menu…" oninput="onSearchInput(this.value)">
+      <datalist id="labelOptions"></datalist>
+      <button class="refresh-btn" id="clearSearchBtn" onclick="clearSearch()" style="display:none">✕ Clear</button>
       <span class="refresh-info" id="refreshInfo">—</span>
       <button class="refresh-btn" id="refreshBtn" onclick="loadAll(true)">↻ Refresh</button>
     </div>
-  </div>
-  <div class="search-row">
-    <input id="labelSearch" list="labelOptions" placeholder="Search by client label (e.g. Google, Vivanti Consulting)…" oninput="onSearchInput(this.value)">
-    <datalist id="labelOptions"></datalist>
-    <button class="refresh-btn" id="clearSearchBtn" onclick="clearSearch()" style="display:none">✕ Clear search</button>
   </div>
   <div class="wrap" id="content">
     <div class="loading">Loading board data…</div>
@@ -170,51 +160,9 @@ const DEFAULT_STALE_DAYS = 14;
 let currentView = 'working';
 let cache = {};
 let labelMap = {};
-let clientEmailFieldId = null;
 let refreshTimer = null;
 let staleDays = DEFAULT_STALE_DAYS;
 let searchQuery = '';
-let excludedEmails = [];
-let excludedDomains = [];
-let excludedLabels = [];
-const DEFAULT_EXCLUDED_LABELS = 'design Bees, Mckenzie Dev';
-
-function loadExcludeLabels() {
-  const raw = localStorage.getItem('trelloDashExcludeLabels');
-  const value = raw === null ? DEFAULT_EXCLUDED_LABELS : raw;
-  applyExcludeLabels(value);
-  const el = document.getElementById('excludeLabels');
-  if (el) el.value = value;
-}
-
-function setExcludeLabels(v) {
-  localStorage.setItem('trelloDashExcludeLabels', v);
-  applyExcludeLabels(v);
-  render();
-}
-
-function applyExcludeLabels(raw) {
-  excludedLabels = raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-}
-
-function loadExcludeList() {
-  const raw = localStorage.getItem('trelloDashExcludeList') || '';
-  applyExcludeList(raw);
-  const el = document.getElementById('excludeList');
-  if (el) el.value = raw;
-}
-
-function setExcludeList(v) {
-  localStorage.setItem('trelloDashExcludeList', v);
-  applyExcludeList(v);
-  render();
-}
-
-function applyExcludeList(raw) {
-  const entries = raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-  excludedEmails = entries.filter(e => e.includes('@'));
-  excludedDomains = entries.filter(e => !e.includes('@'));
-}
 
 function loadStaleDays() {
   const raw = localStorage.getItem('trelloDashStaleDays');
@@ -242,57 +190,35 @@ function initials(name) {
   return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
 }
 
-function isExcludedEmail(email) {
-  if (!email) return false;
-  const e = email.trim().toLowerCase();
-  if (excludedEmails.includes(e)) return true;
-  return excludedDomains.some(d => e.endsWith('@' + d));
-}
-
-function getClientEmail(card) {
-  if (!clientEmailFieldId || !card.customFieldItems) return null;
-  const item = card.customFieldItems.find(i => i.idCustomField === clientEmailFieldId);
-  return item && item.value ? item.value.text : null;
-}
-
 function isStale(card) {
   if (!card.dateLastActivity) return false;
   const ageDays = (Date.now() - new Date(card.dateLastActivity).getTime()) / 86400000;
   return ageDays > staleDays;
 }
 
-function hasExcludedLabel(card) {
-  return (card.idLabels || []).some(id => {
-    const l = labelMap[id];
-    return l && l.name && excludedLabels.includes(l.name.trim().toLowerCase());
-  });
-}
-
 function filterCards(cards) {
-  return (cards || []).filter(c => !isExcludedEmail(getClientEmail(c)) && !isStale(c) && !hasExcludedLabel(c));
+  // Client/email exclusions are applied server-side in the Worker proxy —
+  // this only applies the user-visible, per-browser staleness cutoff.
+  return (cards || []).filter(c => !isStale(c));
 }
 
 async function loadAll(manual) {
   const btn = document.getElementById('refreshBtn');
   btn.classList.add('spin');
   try {
-    const [labels, customFields, ...cardLists] = await Promise.all([
+    const [labels, ...cardLists] = await Promise.all([
       api(`/board/labels`, { fields: 'name,color', limit: 1000 }),
-      api(`/board/customFields`, {}),
       ...Object.entries(ALL_LISTS).map(([key, l]) =>
         api(`/list/${l.id}/cards`, {
           fields: 'name,due,dueComplete,idLabels,shortUrl,dateLastActivity',
           members: 'true',
           member_fields: 'fullName,avatarUrl',
-          customFieldItems: 'true',
         }).then(cards => [key, cards])
       ),
     ]);
     labelMap = {};
     labels.forEach(l => { if (l.name) labelMap[l.id] = l; });
     populateLabelOptions();
-    const emailField = customFields.find(f => (f.name || '').trim().toLowerCase() === 'client email');
-    clientEmailFieldId = emailField ? emailField.id : null;
     cache = Object.fromEntries(cardLists);
     document.getElementById('refreshInfo').textContent = 'Updated ' + new Date().toLocaleTimeString();
     render();
@@ -407,15 +333,22 @@ function populateLabelOptions() {
   document.getElementById('labelOptions').innerHTML = names.map(n => `<option value="${escapeHtml(n)}">`).join('');
 }
 
+function selectTab(view) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === view));
+}
+
 function onSearchInput(v) {
   searchQuery = v.trim();
   document.getElementById('clearSearchBtn').style.display = searchQuery ? 'inline-block' : 'none';
+  // Choosing a client moves you onto the Client View tab, since results span every stage.
+  currentView = 'clientsearch';
+  selectTab('clientsearch');
   render();
 }
 
 function clearSearch() {
   searchQuery = '';
-  document.getElementById('labelSearch').value = '';
+  document.getElementById('clientSelect').value = '';
   document.getElementById('clearSearchBtn').style.display = 'none';
   render();
 }
@@ -429,6 +362,14 @@ function cardHasLabelMatch(card, query) {
 }
 
 function renderSearch() {
+  if (!searchQuery) {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Client View</div>
+       <div class="view-sub">See every job for one client, across all pipeline stages.</div>
+       <div class="empty">Select a client from the dropdown above to search.</div>`;
+    return;
+  }
+
   const q = searchQuery;
   const sections = Object.entries(ALL_LISTS).map(([key, l]) => {
     const matches = filterCards(cache[key]).filter(c => cardHasLabelMatch(c, q));
@@ -438,16 +379,16 @@ function renderSearch() {
   const total = sections.reduce((n, s) => n + s.matches.length, 0);
   const body = total
     ? sections.map(s => section(s.list.name, 'var(--purple)', s.matches, 'prep', s.list.name)).join('')
-    : `<div class="empty">No jobs matching "${escapeHtml(q)}" in any active stage.</div>`;
+    : `<div class="empty">No jobs found for "${escapeHtml(q)}" in any active stage.</div>`;
 
   document.getElementById('content').innerHTML =
-    `<div class="view-title">Client search: "${escapeHtml(q)}"</div>
-     <div class="view-sub">Every job with a matching label, across all pipeline stages — ${total} found.</div>` +
+    `<div class="view-title">Client View: "${escapeHtml(q)}"</div>
+     <div class="view-sub">Every job for this client, across all pipeline stages — ${total} found.</div>` +
     body;
 }
 
 function render() {
-  if (searchQuery) {
+  if (currentView === 'clientsearch') {
     renderSearch();
   } else {
     VIEWS[currentView]();
@@ -456,15 +397,18 @@ function render() {
 
 function setView(view, btn) {
   currentView = view;
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
-  btn.classList.add('on');
+  selectTab(view);
+  if (view !== 'clientsearch') {
+    // Leaving Client View clears the search so it doesn't linger on other tabs.
+    searchQuery = '';
+    document.getElementById('clientSelect').value = '';
+    document.getElementById('clearSearchBtn').style.display = 'none';
+  }
   render();
 }
 
 function boot() {
   loadStaleDays();
-  loadExcludeList();
-  loadExcludeLabels();
   loadAll();
   clearInterval(refreshTimer);
   refreshTimer = setInterval(() => loadAll(), REFRESH_MS);
