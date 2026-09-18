@@ -3,1642 +3,460 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Design Bees — Dripify Sequence Tree</title>
+<title>Design Bees — Production Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Questrial&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20,400,0..1&display=block" rel="stylesheet">
 <style>
-:root {
-  --bg: #faf9fe;
-  --node-bg: #fff;
-  --node-border: #e8e5f0;
-  --node-shadow: 0 1px 4px rgba(0,0,0,0.06);
-  --line: #d4d2de;
-  --text: #1a1a2e;
-  --muted: #6b6b80;
-  --purple: #7c3aed;
-  --purple-lt: #f0e7ff;
-  --green: #16a34a;
-  --green-lt: #dcfce7;
-  --red: #ef4444;
-  --blue: #3b82f6;
-  --gray-lt: #f3f4f6;
+:root{
+/* Design Bees brand */
+--gold:#F6BE38; --gold-deep:#E0A81C; --cream:#F3EFD6; --ink:#15150F; --ink-soft:#282B30;
+/* Surfaces */
+--bg:#FAF7EC; --card-bg:#fff; --border:#EAE3D0; --border-strong:#DED5BD;
+--shadow:0 1px 2px rgba(21,21,15,.04), 0 6px 18px -12px rgba(21,21,15,.16);
+--shadow-lift:0 2px 4px rgba(21,21,15,.05), 0 18px 32px -16px rgba(21,21,15,.22);
+/* Text */
+--text:#15150F; --muted:#6E6550;
+/* Status inks (names kept — the view code passes these as CSS vars) */
+--purple:#8A5B12; --purple-lt:#FAEFD4;
+--green:#4D7B1B; --green-lt:#EBF2DC;
+--amber:#8A5D00; --amber-lt:#FCF0D2;
+--blue:#26685F; --blue-lt:#E3F0ED;
+--red:#A8362B; --red-lt:#FBE6E2;
+--gray-lt:#F1EDE1;
+--font-ui:'Poppins',system-ui,-apple-system,'Segoe UI',sans-serif;
+--font-body:'Questrial',system-ui,-apple-system,'Segoe UI',sans-serif;
 }
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:var(--text); }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font-ui);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+a{color:var(--purple);text-decoration:none}
+a:hover{color:var(--ink)}
 
-/* Header */
-.hdr { background:#fff; border-bottom:1px solid var(--node-border); padding:16px 24px; display:flex; align-items:center; gap:24px; flex-wrap:wrap; position:sticky; top:0; z-index:50; }
-.hdr h1 { font-size:20px; color:var(--purple); font-weight:700; }
-.tabs { display:flex; gap:4px; }
-.tab { padding:8px 16px; border-radius:8px; border:1px solid var(--node-border); background:#fff; color:var(--muted); cursor:pointer; font-size:13px; font-weight:600; transition:all .15s; }
-.tab:hover { background:var(--purple-lt); }
-.tab.on { background:var(--purple); color:#fff; border-color:var(--purple); }
-.sender-tog { display:flex; gap:0; margin-left:auto; }
-.sbtn { padding:8px 16px; border:1px solid var(--node-border); background:#fff; color:var(--muted); cursor:pointer; font-size:13px; font-weight:500; transition:all .15s; }
-.sbtn:first-child { border-radius:8px 0 0 8px; }
-.sbtn:last-child { border-radius:0 8px 8px 0; border-left:none; }
-.sbtn.on { background:var(--purple); color:#fff; border-color:var(--purple); }
+/* ---------- Header ---------- */
+.hdr{background:var(--ink);color:#fff;position:sticky;top:0;z-index:50;padding:14px 24px 0;box-shadow:0 1px 0 rgba(255,255,255,.06)}
+.hdr-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;min-width:0;flex:none}
+.brand-logo{height:22px;width:auto;display:block;flex:none}
+.brand-rule{width:1px;height:18px;background:rgba(255,255,255,.18);flex:none}
+.hdr h1{font-size:11.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;white-space:nowrap;color:rgba(255,255,255,.72)}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.hdr-tools{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;padding-bottom:7px}
+.refresh-info{font-family:var(--font-body);font-size:12px;color:rgba(255,255,255,.55);white-space:nowrap}
+.stale-ctl{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;color:rgba(255,255,255,.6);white-space:nowrap;cursor:help}
+.stale-ctl input{width:46px;padding:5px 6px;border:1px solid rgba(255,255,255,.16);border-radius:7px;background:rgba(255,255,255,.07);color:#fff;font-family:var(--font-ui);font-size:12px;font-weight:600;text-align:center}
+.stale-ctl input:focus{outline:none;border-color:var(--gold);background:rgba(255,255,255,.12)}
+.client-search{flex:none;width:196px;padding:8px 13px;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:rgba(255,255,255,.07);color:#fff;font-family:var(--font-ui);font-size:12.5px;text-overflow:ellipsis}
+.client-search::placeholder{color:rgba(255,255,255,.62)}
+.client-search:focus{outline:none;border-color:var(--gold);background:rgba(255,255,255,.12)}
+.refresh-btn{padding:8px 14px;border-radius:8px;border:1px solid transparent;background:var(--gold);color:var(--ink);cursor:pointer;font-family:var(--font-ui);font-size:12.5px;font-weight:600;transition:background .15s,opacity .15s}
+.refresh-btn:hover{background:var(--gold-deep)}
+.refresh-btn.spin{opacity:.5;pointer-events:none}
+.refresh-btn.spin::before{content:'';display:inline-block;width:10px;height:10px;margin-right:7px;border:2px solid rgba(21,21,15,.3);border-top-color:var(--ink);border-radius:50%;vertical-align:-1px;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#clearSearchBtn{background:transparent;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.75)}
+#clearSearchBtn:hover{background:rgba(255,255,255,.08);color:#fff}
 
-/* Tree container */
-.tree-wrap { overflow:auto; padding:40px 20px 80px; min-height:calc(100vh - 60px); }
-.tree-root { display:flex; flex-direction:column; align-items:center; min-width:fit-content; margin:0 auto; }
+/* ---------- Tabs ---------- */
+.tabs{display:flex;align-items:flex-end;column-gap:2px;row-gap:6px;flex-wrap:wrap;margin-top:10px}
+.tabs+.tabs{margin-top:2px}
+.tab{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:none;border-radius:8px 8px 0 0;background:transparent;color:rgba(255,255,255,.6);cursor:pointer;font-family:var(--font-ui);font-size:12.5px;font-weight:500;transition:background .15s,color .15s;white-space:nowrap;position:relative;top:1px}
+.tab:hover{background:rgba(255,255,255,.08);color:#fff}
+.tab.on{background:var(--bg);color:var(--text);font-weight:600}
+.mi{font-family:'Material Symbols Outlined';font-size:17px;line-height:1;font-variation-settings:'FILL' 0,'wght' 400,'opsz' 20;flex:none;width:17px;overflow:hidden}
+.tab .mi{color:var(--gold);opacity:.85}
+.tab.on .mi{color:var(--gold-deep);opacity:1;font-variation-settings:'FILL' 1,'wght' 500,'opsz' 20}
 
-/* Vertical line */
-.vl { width:2px; height:24px; background:var(--line); flex-shrink:0; }
-.vl.short { height:14px; }
+/* ---------- Layout ---------- */
+.wrap{padding:28px 24px 72px;max-width:1440px;margin:0 auto}
+.view-title{font-size:22px;font-weight:700;letter-spacing:-.4px;margin-bottom:4px}
+.view-sub{font-family:var(--font-body);font-size:13.5px;color:var(--muted);margin-bottom:26px;max-width:72ch;line-height:1.5}
+.loading{text-align:center;padding:72px;color:var(--muted);font-family:var(--font-body);font-size:13.5px}
+.empty{padding:22px;color:var(--muted);font-family:var(--font-body);font-size:13px;background:rgba(243,239,214,.5);border:1px dashed var(--border-strong);border-radius:12px}
 
-/* Action node */
-.node { display:flex; align-items:center; gap:10px; padding:10px 18px; background:var(--node-bg); border:1px solid var(--node-border); border-radius:10px; box-shadow:var(--node-shadow); white-space:nowrap; position:relative; min-width:140px; }
-.node.clickable { cursor:pointer; }
-.node.clickable:hover { border-color:var(--purple); box-shadow:0 2px 12px rgba(124,58,237,0.15); }
-.node-icon { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
-.node-label { font-size:13px; font-weight:500; color:var(--text); }
-.node .info-dot { position:absolute; top:4px; right:6px; width:6px; height:6px; border-radius:50%; background:var(--purple); }
+/* ---------- Sections ---------- */
+.section{margin-bottom:34px}
+.section-hdr{display:flex;align-items:center;gap:9px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.section-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.section-hdr h3{font-size:11.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase}
+.section-count{font-size:11px;font-weight:600;color:var(--muted);background:var(--gray-lt);padding:2px 9px;border-radius:20px;margin-left:-2px}
 
-/* Icon colors */
-.ic-like .node-icon, .ic-follow .node-icon, .ic-view .node-icon { background:var(--gray-lt); }
-.ic-msg .node-icon { background:var(--green-lt); color:var(--green); }
-.ic-invite .node-icon { background:var(--purple-lt); color:var(--purple); }
-.ic-inmail .node-icon { background:var(--purple-lt); color:var(--purple); }
-.ic-email .node-icon { background:var(--purple-lt); color:var(--purple); }
-.ic-endorse .node-icon { background:var(--gray-lt); }
-.ic-find .node-icon { background:var(--purple-lt); color:var(--purple); }
-.ic-end .node-icon { background:var(--gray-lt); color:var(--muted); }
+/* ---------- Cards ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(282px,1fr));gap:14px}
+.card{background:var(--card-bg);border:1px solid var(--border);border-left:3px solid var(--border-strong);border-radius:12px;padding:15px 17px;box-shadow:var(--shadow);position:relative;display:flex;flex-direction:column;gap:11px;transition:box-shadow .18s,transform .18s}
+.card:hover{box-shadow:var(--shadow-lift);transform:translateY(-1px)}
+.card.clickable{cursor:pointer}
+.card.clickable:hover .card-title{color:var(--purple);text-decoration:underline;text-decoration-color:var(--gold);text-decoration-thickness:2px;text-underline-offset:2px}
+.card.status-working{border-left-color:var(--green)}
+.card.status-assigned{border-left-color:var(--gold)}
+.card.status-review{border-left-color:var(--blue)}
+.card.status-prep{border-left-color:var(--purple)}
+.card.status-pushed{border-left-color:#B8B0A0}
+.card.status-client{border-left-color:var(--red)}
+.card-title{font-size:13.5px;font-weight:600;line-height:1.4;text-wrap:pretty}
+.card-title a{color:var(--text)}
+.card-title a:hover{color:var(--purple);text-decoration:underline;text-decoration-color:var(--gold);text-decoration-thickness:2px;text-underline-offset:2px}
+.card-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;letter-spacing:.2px;white-space:nowrap}
+.chip.client{background:var(--purple-lt);color:var(--purple);box-shadow:inset 0 0 0 1px rgba(138,91,18,.12)}
+.chip.list{background:var(--gray-lt);color:var(--muted)}
+.chip.due{background:var(--amber-lt);color:var(--amber)}
+.chip.due.overdue{background:var(--red-lt);color:var(--red)}
+.card-members{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}
+.member{display:flex;align-items:center;gap:6px;font-family:var(--font-body);font-size:11.5px;color:var(--muted);background:var(--gray-lt);padding:3px 10px 3px 3px;border-radius:20px}
+.avatar{width:19px;height:19px;border-radius:50%;background:var(--cream);color:var(--purple);font-family:var(--font-ui);font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;object-fit:cover;flex:none}
 
-/* Delay badge */
-.delay { display:flex; align-items:center; gap:6px; padding:4px 14px; border-radius:20px; background:var(--purple-lt); color:var(--purple); font-size:12px; font-weight:600; }
-.delay-wrap { display:flex; flex-direction:column; align-items:center; }
+/* ---------- Setup (unused fallback screen) ---------- */
+.setup{max-width:520px;margin:80px auto;background:#fff;border:1px solid var(--border);border-radius:14px;padding:32px;box-shadow:var(--shadow)}
+.setup h2{font-size:19px;margin-bottom:6px}
+.setup p,.setup .note{font-family:var(--font-body);color:var(--muted);font-size:13px;margin-bottom:18px;line-height:1.55}
+.setup label{display:block;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:14px 0 5px}
+.setup input{width:100%;padding:10px 12px;border:1px solid var(--border-strong);border-radius:8px;font-family:var(--font-ui);font-size:13px}
+.setup button{margin-top:20px;width:100%;padding:12px;border-radius:8px;border:none;background:var(--gold);color:var(--ink);font-family:var(--font-ui);font-size:13.5px;font-weight:700;cursor:pointer}
+.setup button:hover{background:var(--gold-deep)}
+.setup .err{color:var(--red);font-size:12.5px;margin-top:10px;display:none}
 
-/* Condition node */
-.cond-node { display:flex; align-items:center; gap:8px; padding:10px 20px; background:var(--purple-lt); border:1.5px solid rgba(124,58,237,0.25); border-radius:10px; font-size:13px; font-weight:600; color:var(--purple); white-space:nowrap; }
-.cond-icon { font-size:16px; }
-
-/* Branch */
-.branch-arms { display:flex; position:relative; }
-.branch-arm { flex:1; display:flex; flex-direction:column; align-items:center; position:relative; padding:28px 8px 0; min-width:160px; }
-/* Horizontal bar: each arm draws its half */
-.branch-arm::after { content:''; position:absolute; top:0; height:2px; background:var(--line); }
-.branch-arm:first-child::after { left:50%; right:0; }
-.branch-arm:last-child::after { left:0; right:50%; }
-/* Vertical drop from h-bar to label */
-.branch-arm::before { content:''; position:absolute; top:0; left:50%; transform:translateX(-50%); width:2px; height:28px; background:var(--line); }
-/* Branch label */
-.blabel { font-size:11px; font-weight:700; margin-bottom:6px; }
-.blabel.red { color:var(--red); }
-.blabel.green { color:var(--green); }
-
-/* Sequence column inside arm */
-.arm-seq { display:flex; flex-direction:column; align-items:center; }
-
-/* Modal */
-.modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; z-index:100; justify-content:center; align-items:center; backdrop-filter:blur(2px); }
-.modal-bg.show { display:flex; }
-.modal { background:#fff; border-radius:16px; max-width:560px; width:92%; max-height:85vh; overflow-y:auto; padding:28px; box-shadow:0 20px 60px rgba(0,0,0,0.25); }
-.modal-title { font-size:16px; font-weight:700; color:var(--purple); margin-bottom:4px; }
-.modal-sub { font-size:13px; color:var(--muted); margin-bottom:16px; }
-.modal-subject { background:var(--purple-lt); border-radius:8px; padding:8px 14px; font-size:13px; margin-bottom:12px; }
-.modal-subject strong { color:var(--purple); }
-.modal-body { background:var(--bg); border:1px solid var(--node-border); border-radius:10px; padding:20px; font-size:14px; line-height:1.7; white-space:pre-wrap; color:var(--text); position:relative; }
-.modal-copy { position:absolute; top:8px; right:8px; background:var(--purple); color:#fff; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; }
-.modal-copy:hover { background:#6d28d9; }
-.modal-copy.done { background:var(--green); }
-.modal-close { display:block; margin:16px auto 0; padding:8px 28px; border-radius:8px; border:1px solid var(--node-border); background:#fff; color:var(--muted); cursor:pointer; font-size:13px; }
-.modal-close:hover { background:var(--bg); }
-
-/* Zoom controls */
-.zoom { position:fixed; bottom:20px; right:20px; display:flex; gap:4px; z-index:40; }
-.zoom button { width:36px; height:36px; border-radius:8px; border:1px solid var(--node-border); background:#fff; color:var(--text); cursor:pointer; font-size:16px; box-shadow:var(--node-shadow); }
-.zoom button:hover { background:var(--purple-lt); }
-
-@media(max-width:700px) {
-  .hdr { flex-direction:column; align-items:flex-start; gap:12px; }
-  .sender-tog { margin-left:0; }
+@media(max-width:760px){
+.hdr{padding:12px 16px 0}
+.hdr-right,.hdr-tools{margin-left:0;width:100%;padding-bottom:2px}
+.client-search{width:100%}
+.tabs{row-gap:8px}
+.wrap{padding:22px 16px 60px}
+.grid{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
-<div class="hdr">
-  <h1>Design Bees</h1>
-  <div class="tabs">
-    <button class="tab on" onclick="setICP('icp1',this)">ICP 1 — Marketing Hire</button>
-    <button class="tab" onclick="setICP('icp2',this)">ICP 2 — Founder</button>
-    <button class="tab" onclick="setICP('icp3',this)">ICP 3 — Agency</button>
-  </div>
-  <div class="sender-tog">
-    <button class="sbtn on" onclick="setSender('aj')">AJ</button>
-    <button class="sbtn" onclick="setSender('nathan')">Nathan</button>
-  </div>
-</div>
-
-<div class="tree-wrap" id="treeWrap">
-  <div class="tree-root" id="treeRoot"></div>
-</div>
-
-<div class="modal-bg" id="modalBg" onclick="hideModal()">
-  <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-title" id="mTitle"></div>
-    <div class="modal-sub" id="mSub"></div>
-    <div id="mSubject" class="modal-subject" style="display:none"></div>
-    <div class="modal-body" id="mBody">
-      <button class="modal-copy" onclick="copyMsg(this)">Copy</button>
-      <div id="mText"></div>
+<div id="app">
+  <div class="hdr">
+    <div class="hdr-row">
+      <div class="brand">
+        <img class="brand-logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABnoAAAFsCAYAAADrFGeVAAAACXBIWXMAAAsSAAALEgHS3X78AAAgAElEQVR4nOzdPXLb2PI28OdOTcSEflcg3hVIEzIShhuwbsxAcCFmWV6B4RUMpxCzRAWIR94ADUUMR1rBUCv4WwnTeQM0JFimJH4A6NPnPL8q1dwPD9mWIPCg+3Sf//z7778gIiIiIqL95FkSAXgH4KT2TwAYADja4yXvAazkPxfyz1sA38eTWbHhzxMREREREVHA/sNCDxERERHR2/IseQcgQlnIibB/IedQVSGoQFkAuh1PZiuFOIiIiIiIiMgBLPQQEREREW2QZ8kAZUGn+tIo6mzrAWXhpwBQjCezW9VoiIiIiIiIqDMs9BARERERCRnDdoaysHOsGsxhHgBcoyz8XI8ns++64RAREREREVFbWOghIiIioqDlWXKGsrhzBqCvHE5b7gDMURZ9VrqhEBERERERUZNY6CEiIiKi4ORZcgIgRlnccXkkWxvuAEzBTh8iIiIiIiIvsNBDREREREHIs+QdysLOBWyPZWtKNd5tyjN9iIiIiIiI7GKhh4iIiIi8lmfJAGX3zgX8Hc12qBsA8/FkNtcOhIiIiIiIiHbDQg8REREBeDyEfiBfqP3nQv77dwC3AG457okskAJPCuBcNxJT7gGkLPgQERERERHZwUIPERFRoCQJXh1Af7rjv36HcuTTnAe7k2tY4GkECz5ERERERERGsNBDREQUGOncuQDwvqGX5MgncoKcwXMBjmhr0h2Ai/FkVmgHQkRERERERJux0ENERBSIPEtOAEyxe/fOtu4BxEwIk4Y8S85QXt9H2rF46ivKgs9KOxAiIiIiIiL6EQs9REREAcizJAXwuaO3+4qy4MNzfKh1MqZtjvYKmPTkAcB0PJml2oEQERERERHRExZ6iIiIPCZJ8GsAxx2/9QOAM3b3UJvyLLlAeRYPx7R16w5lMfdWOxAiIiIiIiJioYeIiMhbMqqtgG4S/APP7qGmyVk8czR3zhTt5wu7e4iIiIiIiPSx0ENEROShPEtilOeVuNDpwGIPNUYKmNfgWTyuuEPZvbfSDoSIiIiIiChULPQQERF5RhLhf2vH8QyLPXQwKWBeKodBP3tAOcrtWjsQIiIiIiKiEP2iHQARERE1pzauzTWXeZacaQdBduVZMgeLPK7qA/grz5JUOxAiIiIiIqIQsaOHiIjIE3JuSQHgWDmUlzwAOOGIJ9qFXNfXAE61Y6GtXAG4GE9m37UDISIiIiIiCgU7eoiIiPyRwt0iD1Du+udoJ9parXjJIo8d5wAK+dkRERERERFRB1joISIi8kCeJRGAj9pxbOE4z5IL7SDIfQY61OhlxyiLPQPtQIiIiIiIiELAQg8REZEfUu0AdpBytz+9hkUeLxwDuJVzw4iIiIiIiKhFLPQQEREZl2dJDFujrfoA2NVDG7HI45U+ys4eFnuIiIiIiIhaxEIPERGRfbF2AHu4YFcPPccij5dY7CEiIiIiImoZCz1ERESGSfLUUjdPpQ/gTDsIck4BFnl81AdwzeIuERERERFRO1joISIisi3WDuAALPTQozxL5mCRx2dHKDt7WOwhIiIiIiJqGAs9REREtlkulrxn0pcAIM+SFMC5dhzUumMA19pBEBERERER+YaFHiIiIqPyLBmg3CVvWaQdAOnKs+QMwGftOKgzp9K9RURERERERA1hoYeIiMguHw439+HvQHuSYuVcOQzq3nmeJbF2EERERERERL5goYeIiMguH4okkXYApOoaQF87CFJxmWeJD/cwIiIiIiIidSz0EBER2TXQDqABPKMnUHIuz7F2HKTqmud0ERERERERHY6FHiIiIrsG2gE0gIn+AEknB8/loSNwdB8REREREdHBWOghIiIioq7NtQMgZ7zPs+RMOwgiIiIiIiLLWOghIiIios7kWXIBdnLRj+Yc4UZERERERLQ/FnqIiIiIqBOSzE+14yDn9MEuLyIiIiIior2x0ENERESaHrQDoE5NUSb1iZ57n2dJpB0EERERERGRRb9qB0A68iyZAjjRjuMNF+PJ7FY7CCIih90CONUO4kC8zwciz5ITAOfacZDT5gAGyjEQERERERGZw0JPuE7gfnKQs9qJiF630g6gASvtAKgzU+0AyHlHeZbE48lsrh0IERERERGRJRzdRkREZJcP3TA+/B3oDTKSy/UNJuSGqZzlRERERERERFtioYeIiMio8WRWaMfQgEI7AOrEhXYAZEYfvF6IiIiIiIh2wkIPERGRbV+1AzjAPc9i81+eJQMA77XjcNQdgBv5Jz25YFcPERERERHR9nhGDxERkW3XsJtEv9YOgDqRageg7AbliMJblGdS3Y4ns+8v/WEpcJzI1wBA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" alt="Design Bees">
+        <span class="brand-rule"></span>
+        <h1>Production</h1>
+      </div>
+      <div class="hdr-right">
+        <span class="refresh-info" id="refreshInfo">—</span>
+        <button class="refresh-btn" id="refreshBtn" onclick="loadAll(true)">↻ Refresh</button>
+      </div>
     </div>
-    <button class="modal-close" onclick="hideModal()">Close</button>
+    <div class="tabs">
+      <button class="tab on" data-view="working" onclick="setView('working',this)"><span class="mi">brush</span>Being Worked On</button>
+      <button class="tab" data-view="assigned" onclick="setView('assigned',this)"><span class="mi">assignment_ind</span>Assigned Today</button>
+      <button class="tab" data-view="combined" onclick="setView('combined',this)"><span class="mi">layers</span>Working + Assigned</button>
+      <button class="tab" data-view="review" onclick="setView('review',this)"><span class="mi">fact_check</span>Internal Review</button>
+      <button class="tab" data-view="client" onclick="setView('client',this)"><span class="mi">hourglass_top</span>Awaiting Client Review</button>
+    </div>
+    <div class="tabs">
+      <button class="tab" data-view="prep" onclick="setView('prep',this)"><span class="mi">inventory_2</span>Prepping/Packaging</button>
+      <button class="tab" data-view="pushed" onclick="setView('pushed',this)"><span class="mi">send</span>Files Pushed</button>
+      <button class="tab" data-view="clientsearch" onclick="setView('clientsearch',this)"><span class="mi">search</span>Client View</button>
+      <div class="hdr-tools">
+        <span class="stale-ctl" title="Trello's 'Card Aging' fade isn't exposed by the API — this approximates it using days since last activity. Tune it to match what you see as greyed-out on the board.">
+          Hide inactive &gt;
+          <input id="staleDays" type="number" min="1" value="2" onchange="setStaleDays(this.value)">
+          days
+        </span>
+        <input id="clientSelect" class="client-search" list="labelOptions" placeholder="Choose a client..." oninput="onSearchInput(this.value)">
+        <datalist id="labelOptions"></datalist>
+        <button class="refresh-btn" id="clearSearchBtn" onclick="clearSearch()" style="display:none">✕ Clear</button>
+      </div>
+    </div>
   </div>
-</div>
-
-<div class="zoom">
-  <button onclick="zoom(-0.1)" title="Zoom out">−</button>
-  <button onclick="zoom(0.1)" title="Zoom in">+</button>
-  <button onclick="zoomReset()" title="Reset">⟲</button>
+  <div class="wrap" id="content">
+    <div class="loading">Loading board data…</div>
+  </div>
 </div>
 
 <script>
-// ── Icons ──
-const IC = {
-  like:'👍', follow:'👤', invite:'📩', msg:'💬', inmail:'✉️',
-  email:'📧', view:'👁️', endorse:'☑️', find:'🔍', end:'⏹️'
+// The 7 tracked pipeline stages shown as tabs.
+const LISTS = {
+  working:  { id: '6767eb93ad96bd8a9c785242', name: '2.2 - Being Designed' },
+  assigned: { id: '65694d3b54a5be08d28f529b', name: 'STAGE 2: With Designer' },
+  review:   { id: '656d96513d2851c6d5458391', name: '3 - Internal Check' },
+  client:   { id: '65694d3b545bb7f8813c32ef', name: 'STAGE 4: Client review' },
+  prep51:   { id: '6767eba73e27b8009ef10f25', name: 'Stage 5.1 Prepping Files' },
+  prep52:   { id: '65f2b493a2a6fee06c4c9e78', name: '5.2 - Packaging Files to send' },
+  pushed:   { id: '65a4ae916bbe11ac77be2ed3', name: 'STAGE 6: Files Pushed' },
 };
 
-// ── Messages ──
-const M = {
-icp1: {
-  conn: {
-    aj: `Hi %%first_name%% — no in-house designer at %%company%%? Most marketing teams your size are buried in Canva and chasing freelancers. We fix that for a flat monthly fee. Worth a look?`,
-    nathan: `Hi %%first_name%% — if %%company%%'s marketing team is anything like most, design is either Canva or a freelancer who's hard to pin down. We sort that out for a flat monthly fee. Worth a look?`
-  },
-  m1: {
-    aj: `%%first_name%% — quick one.\n\nWho's doing design at %%company%% right now? Canva? A freelancer who takes 3 days to reply? Nobody?\n\nMarketing managers your size were spending 10+ hours a week on it — not their job. We give them a dedicated designer for a flat monthly fee. Designs back same day in most cases.\n\nWant me to send the details?`,
-    nathan: `%%first_name%% — quick one from me.\n\nWho's handling design at %%company%% right now? Canva? A freelancer who takes a few days to get back to you? Nobody?\n\nMarketing managers your size were spending 10+ hours a week on it — not their job. A dedicated designer on a flat monthly fee changes that. Designs back same day in most cases.\n\nHappy to send through the details if it sounds relevant?`
-  },
-  m2: {
-    aj: `Be honest %%first_name%% — when did you last look at %%company%%'s marketing collateral and think 'that actually looks sharp'?\n\nMelissa, Head of Marketing at an IT company similar to %%company%%, had a 6-week design backlog when she came to us. Cleared it in her first month. Her words: "It feels good to know I have a trusted, affordable design partner."\n\nFree 10-day trial — no commitment. Want me to send through the details?`,
-    nathan: `Be honest %%first_name%% — when did you last look at %%company%%'s collateral and think 'that actually reflects how good we are'?\n\nMelissa, Head of Marketing at an IT company similar to %%company%%, had a 6-week design backlog when she came to us. Cleared it in her first month. Her words: "It feels good to know I have a trusted, affordable design partner."\n\nFree 10-day trial — no commitment. Happy to send through the details if you'd like to take a look?`
-  },
-  email: {
-    aj: `Hi %%first_name%%,\n\nIf the design situation at %%company%% is anything like most marketing teams your size — it's either Canva, a freelancer who takes days to reply, or both.\n\nMelissa, Head of Marketing at a similar IT company, had a 6-week backlog when she came to us. Cleared it in her first month. Dedicated designer, flat monthly fee from $995, no lock-in.\n\nWe run a free 10-day trial — if it's not right you walk away with 10 days of free design work.\n\nSee our plans: https://www.designbees.com.au/pricing-cards\nOr book 15 mins: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nAJ\nDesign Bees — designbees.com.au`,
-    nathan: `Hi %%first_name%%,\n\nIf the design situation at %%company%% is anything like most marketing teams your size — it's either Canva, a freelancer who's hard to pin down, or both.\n\nMelissa, Head of Marketing at a similar IT company, had a 6-week backlog when she came to us. Cleared it in her first month. Dedicated designer, flat monthly fee from $995, no lock-in.\n\nWe run a free 10-day trial — if it's not right, you walk away with 10 days of free design work.\n\nSee our plans: https://www.designbees.com.au/pricing-cards\nOr book a 15-min chat: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nNathan\nDesign Bees — designbees.com.au`,
-    sAj: 'Still running on Canva at %%company%%?',
-    sNa: 'Design still on your plate at %%company%%?'
-  },
-  exit: {
-    aj: `No stress %%first_name%% — I know the to-do list never gets shorter.\n\nIf there's ever a point where %%company%%'s design needs to look as good as the work you're actually doing — we're here: designbees.com.au/pricing-cards\n\nFree 10-day trial, no commitment. Good luck with everything.`,
-    nathan: `No stress %%first_name%% — I know the list never gets shorter.\n\nIf there's ever a point where %%company%%'s design needs to look as good as the work you're actually doing, we're here: designbees.com.au/pricing-cards\n\nFree 10-day trial, no commitment. Good luck with everything.`
-  },
-  inmail: {
-    aj: `Hi %%first_name%% — most marketing teams at companies like %%company%% are running on Canva and crossed fingers with freelancers. Sound familiar?\n\nMelissa at Generation-e was in the same spot — cleared a 6-week design backlog in her first month once she had a dedicated designer on a flat monthly fee.\n\nWe run a free 10-day trial — no contract, no risk. If it's not the right fit, you walk away with 10 days of free design work.\n\nWant me to send through the details?`,
-    nathan: `Hi %%first_name%% — if %%company%%'s marketing team is anything like most, design is either stuck in a Canva queue or waiting on a freelancer who's gone quiet.\n\nMelissa at Generation-e was in that exact spot — cleared a 6-week backlog in her first month once she had a dedicated designer on a flat monthly fee. No hiring, no contracts.\n\nWe run a free 10-day trial — if it's not the right fit, you walk away with 10 days of free design work. Happy to send through the details?`,
-    sAj: 'Still running on Canva?',
-    sNa: 'Design still on your plate?'
-  }
-},
-icp2: {
-  conn: {
-    aj: `Hi %%first_name%% — still doing your own design at %%company%%? Most founders at your stage are. Dedicated designer for $545/month, no contracts, 10-day trial. Worth a look?`,
-    nathan: `Hi %%first_name%% — still doing your own design at %%company%%? Most founders at your stage are. A dedicated designer for $545/month fixes that — no contracts, 10-day trial. Worth a look?`
-  },
-  m1: {
-    aj: `%%first_name%% — quick one.\n\nWho's doing design at %%company%% right now? Canva? A freelancer who takes days to reply? Still you?\n\nOne of the founders we work with was in the same spot. Now he just sends briefs — designs back same day. Dedicated designer, $545/month, no contracts.\n\nWant me to send the details?`,
-    nathan: `%%first_name%% — quick one.\n\nWho's doing design at %%company%% right now? Canva? A freelancer who takes days to reply? Still you?\n\nOne of the founders we work with was in the same spot — spending hours on it every week. Now he just sends briefs and gets designs back same day. $545/month, dedicated designer, no contracts.\n\nHappy to send through the details if it sounds relevant?`
-  },
-  m15: {
-    aj: `Saw you had a look %%first_name%% — no stress if the timing's off.\n\nQuick context: Sam at Blugibbon sent his first brief on a Monday, had a full rebrand concept back by Wednesday.\n\n10-day free trial, no commitment. Want me to send the details?`,
-    nathan: `Saw you had a look %%first_name%% — totally understand if it's not the right time.\n\nQuick context: Sam at Blugibbon was in the same spot. Sent his first brief on a Monday — full rebrand concept back by Wednesday.\n\nFree 10-day trial, no commitment. Happy to send through the details?`
-  },
-  m2: {
-    aj: `Be honest %%first_name%% — when did you last look at %%company%%'s website and think 'that actually looks sharp'?\n\nSam at Blugibbon sent his first brief on a Monday. Had a full rebrand concept back by Wednesday. His words: "It comes back looking better than anything I could have made myself."\n\n10-day free trial — no commitment. Want to see how it runs?`,
-    nathan: `Be honest %%first_name%% — when did you last look at %%company%%'s website and think 'that actually looks sharp'?\n\nSam at Blugibbon was spending hours in Canva trying to fix that. Sent his first brief on a Monday — had a full rebrand concept back by Wednesday. His words: "It comes back looking better than anything I could have made myself."\n\nFree 10-day trial, no commitment. Happy to send through the details?`
-  },
-  email: {
-    aj: `Hi %%first_name%%,\n\nIf you're still doing your own design work, you're spending hours on something that shouldn't be near a founder's to-do list.\n\nRecently we had a %%position%% from a %%industry%% business who was in the same spot — hours on Canva every week. Now he just sends briefs and gets designs back the same day. Dedicated designer, no re-briefs. All for just $545/month, with no lock-in contracts cancel at any time.\n\nFor the rest of March we are offering a free 10-day trial — if it's not right, you walk away with 4 hours of free design work.\n\nSee our plans: https://www.designbees.com.au/pricing-cards\nOr book a 15-min call: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nAJ\nDesign Bees — designbees.com.au`,
-    nathan: `Hi %%first_name%%,\n\nIf you're still doing your own design work, you're spending hours on something that shouldn't be near a founder's to-do list.\n\nSam at Blugibbon was in the same spot — hours on Canva every week. Now he just sends briefs and gets designs back same day. $545/month, dedicated designer, no contracts.\n\nFree 10-day trial — if it's not right, you walk away with 10 days of free design work.\n\nSee our plans: https://www.designbees.com.au/pricing-cards\nOr book a 15-min chat: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nNathan\nDesign Bees — designbees.com.au`,
-    sAj: 'Still doing your own design at %%company%%?',
-    sNa: 'Still doing your own design at %%company%%?'
-  },
-  exit: {
-    aj: `No stress %%first_name%% — timing isn't always right.\n\nIf there's ever a point where %%company%% needs to look as sharp as it actually is, we're here: designbees.com.au/pricing-cards\n\nFree 10-day trial, no commitment. Good luck with everything.`,
-    nathan: `No stress %%first_name%% — timing isn't always right.\n\nIf there's ever a point where %%company%% needs to look as sharp as it actually is, we're here: designbees.com.au/pricing-cards\n\nFree 10-day trial, no commitment. Good luck with everything.`
-  },
-  inmail: {
-    aj: `Hi %%first_name%%,\n\nIf you're still doing your own design work, you're spending hours on something that shouldn't be near a founder's to-do list.\n\nRecently we had a %%position%% from a %%industry%% business who was in the same spot — hours on Canva every week. Now he just sends briefs and gets designs back the same day. Dedicated designer, no re-briefs. All for just $545/month, with no lock-in contracts cancel at any time.\n\nFor the rest of March we are offering a free 10-day trial — if it's not right, you walk away with 4 hours of free design work.\n\nSee our plans: https://www.designbees.com.au/pricing-cards\nOr book a 15-min call: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nAJ\nDesign Bees — designbees.com.au`,
-    nathan: `Hi %%first_name%% — if you're still doing your own design work, you're spending time on something a founder shouldn't be near.\n\nSam at Blugibbon was in the same spot — spending hours on Canva every week. Now he just sends briefs and gets designs back same day. $545/month, dedicated designer, no contracts.\n\nHappy to send through the details if it's relevant?`,
-    sAj: 'Still on Canva?',
-    sNa: 'Still doing your own design?'
-  }
-},
-icp3: {
-  conn: {
-    aj: `Hi %%first_name%% — is design the thing stopping %%company%% from taking on more client work? We're the white-label design arm for agencies your size. Flat monthly fee, dedicated designer. Worth a look?`,
-    nathan: `Hi %%first_name%% — is design the bottleneck stopping %%company%% from taking on more clients? We're the white-label design arm for agencies your size — dedicated designer, flat monthly fee. Worth a look?`
-  },
-  m1: {
-    aj: `%%first_name%% — quick one.\n\nHow are you handling design production for your clients right now? In-house? A freelancer you re-brief every time? Outsourced overseas?\n\nMost agencies your size hit the same ceiling — more clients, same design bottleneck. Every new brief means re-briefing a new person on a client's brand, and when someone drops the ball mid-engagement it's your client relationship on the line.\n\nWe're the white-label design arm that fixes that. Dedicated designer across your client brands, flat monthly fee, no hiring.\n\nWant me to send the details?`,
-    nathan: `%%first_name%% — quick one from me.\n\nHow are you handling design production for your clients right now? Freelancer you re-brief every time? Outsourced overseas? Doing without?\n\nMost agencies your size hit the same ceiling — more clients, same bottleneck. Every re-brief is overhead, and when a designer drops the ball mid-engagement it's your client relationship at risk, not theirs.\n\nWe're the white-label design arm that solves that. Dedicated designer across your client brands, flat monthly fee, no hiring.\n\nHappy to send through the details if it sounds relevant?`
-  },
-  m2: {
-    aj: `Be honest %%first_name%% — how much margin are you losing to design revision cycles right now?\n\nThomas at Prospect House had the same problem — offshore design, quality issues, endless revisions. He'd been through Design Pickle and Kimp before finding us. Within a month he had a dedicated designer across 4 client brands. His words: "Cannot recommend Design Bees enough."\n\nFree trial on a real client brief — no commitment. Want me to send the details?`,
-    nathan: `Be honest %%first_name%% — how much margin is %%company%% losing to design revision cycles right now?\n\nThomas at Prospect House had the same problem — offshore design, quality issues, endless revisions eating his margins. He'd been through Design Pickle and Kimp before finding us. Within a month he had a dedicated designer across 4 client brands. His words: "Cannot recommend Design Bees enough."\n\nFree trial on a real client brief — no commitment. Happy to send through the details?`
-  },
-  email: {
-    aj: `Hi %%first_name%%,\n\nIf design is the thing stopping %%company%% from taking on more clients — that's a solvable problem.\n\nThomas at Prospect House was in the same spot. Offshore design, quality issues, revision cycles eating his margins. He'd been through Design Pickle and Kimp. Within a month of switching to us he had a dedicated designer across 4 client brands. His words: "Cannot recommend Design Bees enough."\n\nFree trial on a real client brief — if it's not right, you walk away with a brief's worth of free design.\n\nSee our plans: https://www.designbees.com.au/pricing-cards\nOr book a 15-min call: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nAJ\nDesign Bees — designbees.com.au`,
-    nathan: `Hi %%first_name%%,\n\nIf design is the thing stopping %%company%% from taking on more clients — that's a solvable problem.\n\nThomas at Prospect House was in the same spot. Offshore design, quality issues, revision cycles eating his margins. He'd been through Design Pickle and Kimp before finding us. Within a month he had a dedicated designer across 4 client brands. His words: "Cannot recommend Design Bees enough."\n\nFree trial on a real client brief — if it's not right, you walk away with a brief's worth of free design.\n\nSee our plans: https://www.designbees.com.au/pricing-cards\nOr book a 15-min chat: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nNathan\nDesign Bees — designbees.com.au`,
-    sAj: 'Design bottleneck at %%company%%?',
-    sNa: 'Design bottleneck at %%company%%?'
-  },
-  exit: {
-    aj: `No stress %%first_name%% — timing isn't always right.\n\nIf there's ever a point where %%company%% needs design capacity to take on more clients without the overhead — we're here: designbees.com.au/pricing-cards\n\nFree trial on a real client brief, no commitment. Good luck with everything.`,
-    nathan: `No stress %%first_name%% — timing isn't always right.\n\nIf there's ever a point where %%company%% needs design capacity to take on more clients without the overhead — we're here: designbees.com.au/pricing-cards\n\nFree trial on a real client brief, no commitment. Good luck with everything.`
-  },
-  inmail: {
-    aj: `Hi %%first_name%% — if design is the bottleneck stopping %%company%% from taking on more client work, that's a solvable problem.\n\nThomas at Prospect House had the same issue — he'd used Design Pickle and Kimp before landing with us. His words: "Cannot recommend Design Bees enough." Dedicated designer across your client brands, white-label, flat monthly fee.\n\nFree trial on a real client brief — no commitment. Want me to send the details?`,
-    nathan: `Hi %%first_name%% — most agencies hit a ceiling where design becomes the thing slowing everything else down. More clients, same bottleneck.\n\nThomas at Prospect House put it well — he'd been through Design Pickle and Kimp before finding us: "Cannot recommend Design Bees enough." Dedicated designer across all your client brands, white-label, flat monthly fee, no hiring.\n\nFree trial on a real client brief if you want to test it properly. Happy to send the details?`,
-    sAj: 'Design bottleneck?',
-    sNa: 'More clients, same bottleneck?'
-  }
-}
+// Extra pipeline stages that aren't their own tab but are included when
+// searching by client label "across all of the stages".
+const EXTRA_SEARCH_LISTS = {
+  scoping:  { id: '65694d3b4a249033d5a9c7bb', name: 'STAGE 1: Scoping' },
+  waiting:  { id: '69167848e061f20b459250cb', name: '2.1 - Waiting For Your Input (On Hold)' },
+  approved: { id: '65ded88d73b12a33e6dcf412', name: 'STAGE 5: Client Approved' },
+  survey:   { id: '65dfc41340a34fc6664b0aa5', name: 'STAGE 7: Client Review Survey' },
 };
 
-// ── Message labels ──
-const LABELS = {
-  conn:'Connection Request Note', m1:'Message 1', m15:'Message 1.5 (viewed, no reply)',
-  m2:'Message 2', email:'Email', exit:'Gracious Exit', inmail:'InMail'
-};
+const ALL_LISTS = { ...LISTS, ...EXTRA_SEARCH_LISTS };
 
-// ── Tree definitions ──
-// t:'a' = action, t:'d' = delay, t:'c' = condition
-// v = variant (icon type), l = label, m = message key
+// Cloudflare Worker proxy that holds the Trello key/token server-side.
+// Update this after deploying trello-proxy-worker.js.
+const PROXY_BASE_URL = 'https://trello-dashboard-proxy.aj-9cf.workers.dev';
 
-const emailBranch = (exitNodes) => ({
-  t:'c', l:'If email available',
-  left: {l:'No', c:'red', n:[
-    ...exitNodes,
-  ]},
-  right: {l:'Yes', c:'green', n:[
-    {t:'a', v:'email', l:'Send email', m:'email'},
-    {t:'d', v:'1 day'},
-    ...exitNodes,
-  ]}
-});
+const REFRESH_MS = 60000;
+const DEFAULT_STALE_DAYS = 2;
 
-const inmailFallback = [
-  {t:'a', v:'inmail', l:'InMail', m:'inmail'},
-  {t:'d', v:'1 day'},
-  {t:'c', l:'Responded to InMail?',
-    left: {l:'Still not responded', c:'red', n:[
-      {t:'a', v:'view', l:'View profile'},
-      {t:'d', v:'1 day'},
-      {t:'a', v:'like', l:'Like a post'},
-      {t:'d', v:'1 day'},
-      {t:'a', v:'end', l:'End of sequence'}
-    ]},
-    right: {l:'Responded', c:'green', n:[
-      {t:'a', v:'end', l:'End of sequence'}
-    ]}
-  }
-];
+let currentView = 'working';
+let cache = {};
+let labelMap = {};
+let refreshTimer = null;
+let staleDays = DEFAULT_STALE_DAYS;
+let searchQuery = '';
 
-const TREES = {
-icp1: [
-  {t:'a', v:'like', l:'Like a post'},
-  {t:'d', v:'1 day'},
-  {t:'a', v:'follow', l:'Follow'},
-  {t:'d', v:'1 day'},
-  {t:'a', v:'invite', l:'Send an invite', m:'conn'},
-  {t:'d', v:'1 day'},
-  {t:'c', l:'Connection accepted?',
-    left: {l:'Still not accepted', c:'red', n: inmailFallback},
-    right: {l:'Accepted', c:'green', n:[
-      {t:'d', v:'3 days'},
-      {t:'a', v:'msg', l:'Message', m:'m1'},
-      {t:'d', v:'1 day'},
-      {t:'c', l:'If viewed message',
-        left: {l:'No', c:'red', n:[
-          {t:'a', v:'like', l:'Like a post'},
-          {t:'d', v:'1 day'},
-          {t:'a', v:'msg', l:'Message', m:'m2'},
-          {t:'d', v:'5 days'},
-          {t:'a', v:'find', l:'Find email'},
-          emailBranch([
-            {t:'a', v:'msg', l:'Message', m:'exit'},
-            {t:'d', v:'5 days'},
-            {t:'a', v:'end', l:'End of sequence'}
-          ])
-        ]},
-        right: {l:'Yes', c:'green', n:[
-          {t:'a', v:'msg', l:'Message', m:'m2'},
-          {t:'d', v:'5 days'},
-          {t:'a', v:'find', l:'Find email'},
-          emailBranch([
-            {t:'a', v:'msg', l:'Message', m:'exit'},
-            {t:'d', v:'5 days'},
-            {t:'a', v:'end', l:'End of sequence'}
-          ])
-        ]}
-      }
-    ]}
-  }
-],
-icp2: [
-  {t:'a', v:'like', l:'Like a post'},
-  {t:'d', v:'1 day'},
-  {t:'a', v:'follow', l:'Follow'},
-  {t:'d', v:'1 day'},
-  {t:'a', v:'invite', l:'Send an invite', m:'conn'},
-  {t:'d', v:'1 day'},
-  {t:'c', l:'Connection accepted?',
-    left: {l:'Still not accepted', c:'red', n: inmailFallback},
-    right: {l:'Accepted', c:'green', n:[
-      {t:'d', v:'1 day'},
-      {t:'a', v:'msg', l:'Message', m:'m1'},
-      {t:'d', v:'2 days'},
-      {t:'c', l:'If viewed message',
-        left: {l:'No', c:'red', n:[
-          {t:'a', v:'like', l:'Like a post'},
-          {t:'d', v:'1 day'},
-          {t:'a', v:'msg', l:'Message', m:'m2'},
-          {t:'d', v:'4 days'},
-          {t:'a', v:'find', l:'Find email'},
-          emailBranch([
-            {t:'a', v:'msg', l:'Message', m:'exit'},
-            {t:'d', v:'5 days'},
-            {t:'a', v:'end', l:'End of sequence'}
-          ])
-        ]},
-        right: {l:'Yes', c:'green', n:[
-          {t:'a', v:'msg', l:'Message', m:'m15'},
-          {t:'d', v:'4 days'},
-          {t:'a', v:'find', l:'Find email'},
-          emailBranch([
-            {t:'a', v:'msg', l:'Message', m:'exit'},
-            {t:'d', v:'5 days'},
-            {t:'a', v:'end', l:'End of sequence'}
-          ])
-        ]}
-      }
-    ]}
-  }
-],
-icp3: [
-  {t:'a', v:'like', l:'Like a post'},
-  {t:'d', v:'1 day'},
-  {t:'a', v:'follow', l:'Follow'},
-  {t:'d', v:'1 day'},
-  {t:'a', v:'invite', l:'Send an invite', m:'conn'},
-  {t:'d', v:'1 day'},
-  {t:'c', l:'Connection accepted?',
-    left: {l:'Still not accepted', c:'red', n: inmailFallback},
-    right: {l:'Accepted', c:'green', n:[
-      {t:'d', v:'3 days'},
-      {t:'a', v:'msg', l:'Message', m:'m1'},
-      {t:'d', v:'1 day'},
-      {t:'c', l:'If viewed message',
-        left: {l:'No', c:'red', n:[
-          {t:'a', v:'like', l:'Like a post'},
-          {t:'d', v:'1 day'},
-          {t:'a', v:'msg', l:'Message', m:'m2'},
-          {t:'d', v:'4 days'},
-          {t:'a', v:'find', l:'Find email'},
-          emailBranch([
-            {t:'a', v:'endorse', l:'Endorse skills'},
-            {t:'d', v:'2 days'},
-            {t:'a', v:'msg', l:'Message', m:'exit'},
-            {t:'d', v:'5 days'},
-            {t:'a', v:'end', l:'End of sequence'}
-          ])
-        ]},
-        right: {l:'Yes', c:'green', n:[
-          {t:'a', v:'msg', l:'Message', m:'m2'},
-          {t:'d', v:'4 days'},
-          {t:'a', v:'endorse', l:'Endorse skills'},
-          {t:'d', v:'2 days'},
-          {t:'a', v:'find', l:'Find email'},
-          emailBranch([
-            {t:'a', v:'msg', l:'Message', m:'exit'},
-            {t:'d', v:'5 days'},
-            {t:'a', v:'end', l:'End of sequence'}
-          ])
-        ]}
-      }
-    ]}
-  }
-]
-};
-
-// ── State ──
-let sender = 'aj';
-let icp = 'icp1';
-let scale = 1;
-
-// ── Render ──
-function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-function renderItems(items) {
-  let h = '';
-  for (let i = 0; i < items.length; i++) {
-    const it = items[i];
-    if (it.t === 'a') {
-      const has = !!it.m;
-      const click = has ? ` onclick="showMsg('${it.m}')"` : '';
-      const cls = has ? ' clickable' : '';
-      h += `<div class="node ic-${it.v}${cls}"${click}>
-        <div class="node-icon">${IC[it.v]}</div>
-        <span class="node-label">${it.l}</span>
-        ${has ? '<div class="info-dot"></div>' : ''}
-      </div>`;
-      if (i < items.length - 1) h += '<div class="vl"></div>';
-    } else if (it.t === 'd') {
-      h += `<div class="delay-wrap">
-        <div class="vl short"></div>
-        <div class="delay">⏱ ${it.v}</div>
-        <div class="vl short"></div>
-      </div>`;
-    } else if (it.t === 'c') {
-      h += `<div class="cond-node">
-        <span class="cond-icon">◇</span>
-        <span>${it.l}</span>
-      </div>`;
-      h += '<div class="vl short"></div>';
-      h += `<div class="branch-arms">
-        <div class="branch-arm">
-          <div class="blabel ${it.left.c}">${it.left.l}</div>
-          <div class="vl short"></div>
-          <div class="arm-seq">${renderItems(it.left.n)}</div>
-        </div>
-        <div class="branch-arm">
-          <div class="blabel ${it.right.c}">${it.right.l}</div>
-          <div class="vl short"></div>
-          <div class="arm-seq">${renderItems(it.right.n)}</div>
-        </div>
-      </div>`;
-    }
-  }
-  return h;
+function loadStaleDays() {
+  const raw = localStorage.getItem('trelloDashStaleDays');
+  staleDays = raw ? Number(raw) || DEFAULT_STALE_DAYS : DEFAULT_STALE_DAYS;
+  const el = document.getElementById('staleDays');
+  if (el) el.value = staleDays;
 }
 
-function render() {
-  const root = document.getElementById('treeRoot');
-  root.innerHTML = renderItems(TREES[icp]);
-  root.style.transform = `scale(${scale})`;
-  root.style.transformOrigin = 'top center';
-}
-
-// ── Modal ──
-function showMsg(key) {
-  const msgs = M[icp][key];
-  if (!msgs) return;
-  const txt = msgs[sender];
-  const sub = sender === 'aj' ? msgs.sAj : msgs.sNa;
-  document.getElementById('mTitle').textContent = LABELS[key] || key;
-  document.getElementById('mSub').textContent = sender === 'aj' ? 'AJ sending' : 'Nathan sending';
-  const subEl = document.getElementById('mSubject');
-  if (sub) {
-    subEl.innerHTML = `<strong>Subject:</strong> ${esc(sub)}`;
-    subEl.style.display = 'block';
-  } else {
-    subEl.style.display = 'none';
-  }
-  document.getElementById('mText').textContent = txt;
-  document.getElementById('modalBg').classList.add('show');
-}
-
-function hideModal() {
-  document.getElementById('modalBg').classList.remove('show');
-  const btn = document.querySelector('.modal-copy');
-  btn.textContent = 'Copy';
-  btn.classList.remove('done');
-}
-
-function copyMsg(btn) {
-  const txt = document.getElementById('mText').textContent;
-  navigator.clipboard.writeText(txt).then(() => {
-    btn.textContent = 'Copied!';
-    btn.classList.add('done');
-    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1500);
-  });
-}
-
-// ── Controls ──
-function setICP(key, el) {
-  icp = key;
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
-  el.classList.add('on');
+function setStaleDays(v) {
+  staleDays = Number(v) || DEFAULT_STALE_DAYS;
+  localStorage.setItem('trelloDashStaleDays', String(staleDays));
   render();
 }
 
-function setSender(s) {
-  sender = s;
-  document.querySelectorAll('.sbtn').forEach((b, i) => {
-    b.classList.toggle('on', (s === 'aj' && i === 0) || (s === 'nathan' && i === 1));
+function api(path, params) {
+  const url = new URL(`${PROXY_BASE_URL}${path}`);
+  Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
+  return fetch(url).then(r => {
+    if (!r.ok) throw new Error(`Proxy error ${r.status}`);
+    return r.json();
   });
 }
 
-function zoom(delta) {
-  scale = Math.max(0.3, Math.min(1.5, scale + delta));
-  document.getElementById('treeRoot').style.transform = `scale(${scale})`;
-}
-function zoomReset() {
-  scale = 1;
-  document.getElementById('treeRoot').style.transform = `scale(1)`;
+function initials(name) {
+  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
 }
 
-// Initial render
-render();
-</script>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     RESPONSE PLAYBOOK SECTION
-     ═══════════════════════════════════════════════════════════════ -->
-<style>
-/* ── Playbook section ── */
-.pb-divider { height:4px; background:linear-gradient(90deg,var(--purple),var(--blue),var(--purple)); margin:0; }
-.pb-section { background:var(--bg); padding:40px 24px 80px; max-width:960px; margin:0 auto; }
-.pb-section h2 { font-size:24px; font-weight:800; color:var(--purple); margin-bottom:6px; }
-.pb-section .pb-subtitle { font-size:14px; color:var(--muted); margin-bottom:32px; }
-
-/* Rules banner */
-.pb-rules { background:#fff; border:1px solid var(--node-border); border-radius:12px; padding:24px; margin-bottom:32px; box-shadow:var(--node-shadow); }
-.pb-rules h3 { font-size:15px; font-weight:700; color:var(--text); margin-bottom:14px; }
-.pb-rules-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; }
-.pb-rule { display:flex; gap:10px; align-items:flex-start; }
-.pb-rule-icon { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
-.pb-rule-icon.speed { background:#fef3c7; }
-.pb-rule-icon.pause { background:#fce7f3; }
-.pb-rule-icon.tone { background:#dbeafe; }
-.pb-rule-icon.track { background:#dcfce7; }
-.pb-rule-text { font-size:13px; line-height:1.5; }
-.pb-rule-text strong { display:block; font-size:13px; color:var(--text); }
-.pb-rule-text span { color:var(--muted); }
-
-/* Category tabs */
-.pb-cat-tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:24px; }
-.pb-cat-tab { padding:8px 14px; border-radius:8px; border:1px solid var(--node-border); background:#fff; color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; transition:all .15s; white-space:nowrap; }
-.pb-cat-tab:hover { background:var(--purple-lt); color:var(--purple); }
-.pb-cat-tab.on { background:var(--purple); color:#fff; border-color:var(--purple); }
-.pb-cat-tab .cat-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
-.cat-green { background:var(--green); }
-.cat-blue { background:var(--blue); }
-.cat-amber { background:#f59e0b; }
-.cat-red { background:var(--red); }
-.cat-gray { background:#9ca3af; }
-.cat-purple { background:var(--purple); }
-
-/* Category card */
-.pb-card { background:#fff; border:1px solid var(--node-border); border-radius:14px; box-shadow:var(--node-shadow); overflow:hidden; display:none; }
-.pb-card.show { display:block; }
-.pb-card-hdr { padding:20px 24px 14px; border-bottom:1px solid var(--node-border); }
-.pb-card-hdr h3 { font-size:16px; font-weight:700; color:var(--text); margin-bottom:4px; }
-.pb-card-hdr .pb-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; margin-right:6px; }
-.badge-green { background:var(--green-lt); color:var(--green); }
-.badge-blue { background:#dbeafe; color:var(--blue); }
-.badge-amber { background:#fef3c7; color:#92400e; }
-.badge-red { background:#fee2e2; color:var(--red); }
-.badge-gray { background:var(--gray-lt); color:var(--muted); }
-.badge-purple { background:var(--purple-lt); color:var(--purple); }
-.pb-card-meta { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.5; }
-
-/* Script area */
-.pb-scripts { padding:20px 24px; }
-.pb-script-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); margin-bottom:8px; }
-.pb-script-box { background:var(--bg); border:1px solid var(--node-border); border-radius:10px; padding:16px 18px; font-size:13.5px; line-height:1.7; white-space:pre-wrap; color:var(--text); margin-bottom:16px; position:relative; }
-.pb-script-box .pb-copy { position:absolute; top:8px; right:8px; background:var(--purple); color:#fff; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600; }
-.pb-script-box .pb-copy:hover { background:#6d28d9; }
-.pb-script-box .pb-copy.done { background:var(--green); }
-
-/* Sender toggle inside playbook */
-.pb-sender-tog { display:flex; gap:0; margin-bottom:16px; }
-.pb-sbtn { padding:6px 16px; border:1px solid var(--node-border); background:#fff; color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; transition:all .15s; }
-.pb-sbtn:first-child { border-radius:8px 0 0 8px; }
-.pb-sbtn:last-child { border-radius:0 8px 8px 0; border-left:none; }
-.pb-sbtn.on { background:var(--purple); color:#fff; border-color:var(--purple); }
-
-/* ICP variant pills */
-.pb-icp-pills { display:flex; gap:4px; margin-bottom:12px; }
-.pb-icp-pill { padding:4px 12px; border-radius:20px; border:1px solid var(--node-border); background:#fff; color:var(--muted); cursor:pointer; font-size:11px; font-weight:600; }
-.pb-icp-pill:hover { background:var(--purple-lt); }
-.pb-icp-pill.on { background:var(--purple-lt); color:var(--purple); border-color:rgba(124,58,237,0.3); }
-
-/* Follow-up timeline */
-.pb-followup { padding:0 24px 20px; }
-.pb-followup h4 { font-size:13px; font-weight:700; color:var(--text); margin-bottom:10px; }
-.pb-timeline { display:flex; flex-direction:column; gap:0; }
-.pb-tl-item { display:flex; align-items:flex-start; gap:12px; padding:8px 0; position:relative; }
-.pb-tl-item:not(:last-child)::before { content:''; position:absolute; left:13px; top:28px; bottom:-8px; width:2px; background:var(--node-border); }
-.pb-tl-dot { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; background:var(--purple-lt); color:var(--purple); border:2px solid #fff; box-shadow:0 0 0 1px var(--node-border); }
-.pb-tl-content { font-size:13px; line-height:1.5; }
-.pb-tl-content strong { color:var(--text); }
-.pb-tl-content span { color:var(--muted); }
-
-/* Warning / tip box */
-.pb-tip { display:flex; gap:10px; align-items:flex-start; padding:12px 16px; border-radius:8px; margin:12px 24px 20px; font-size:12px; line-height:1.5; }
-.pb-tip.warn { background:#fef3c7; color:#92400e; }
-.pb-tip.info { background:#dbeafe; color:#1e40af; }
-.pb-tip-icon { font-size:16px; flex-shrink:0; }
-
-/* Metrics bar */
-.pb-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; padding:0 24px 20px; }
-.pb-metric { background:var(--bg); border:1px solid var(--node-border); border-radius:10px; padding:14px 16px; text-align:center; }
-.pb-metric-val { font-size:22px; font-weight:800; color:var(--purple); }
-.pb-metric-label { font-size:11px; color:var(--muted); margin-top:2px; }
-
-/* ── Reply Composer ── */
-.rc-wrap { background:#fff; border:2px solid var(--purple); border-radius:16px; padding:28px; margin-top:36px; box-shadow:0 4px 20px rgba(124,58,237,0.1); }
-.rc-title { font-size:18px; font-weight:800; color:var(--purple); margin-bottom:4px; }
-.rc-subtitle { font-size:13px; color:var(--muted); margin-bottom:20px; }
-.rc-form { display:flex; flex-direction:column; gap:16px; }
-.rc-field { display:flex; flex-direction:column; gap:6px; }
-.rc-field-sm { flex:1; min-width:0; }
-.rc-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); }
-.rc-input { width:100%; border:1px solid var(--node-border); border-radius:10px; padding:12px 14px; font-size:14px; font-family:inherit; resize:vertical; color:var(--text); background:var(--bg); transition:border-color .15s; }
-.rc-input:focus { outline:none; border-color:var(--purple); box-shadow:0 0 0 3px rgba(124,58,237,0.1); }
-.rc-controls { display:flex; gap:16px; flex-wrap:wrap; }
-.rc-pills { display:flex; gap:0; }
-.rc-pill { padding:7px 14px; border:1px solid var(--node-border); background:#fff; color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; transition:all .15s; }
-.rc-pill:first-child { border-radius:8px 0 0 8px; }
-.rc-pill:last-child { border-radius:0 8px 8px 0; border-left:none; }
-.rc-pill:not(:first-child):not(:last-child) { border-left:none; }
-.rc-pill.on { background:var(--purple); color:#fff; border-color:var(--purple); }
-.rc-pill:hover:not(.on) { background:var(--purple-lt); color:var(--purple); }
-.rc-generate { align-self:flex-start; padding:12px 32px; border-radius:10px; border:none; background:var(--purple); color:#fff; font-size:14px; font-weight:700; cursor:pointer; transition:background .15s; }
-.rc-generate:hover { background:#6d28d9; }
-
-/* Result */
-.rc-result { margin-top:24px; padding-top:20px; border-top:1px solid var(--node-border); }
-.rc-detected { background:var(--purple-lt); border-radius:10px; padding:14px 18px; margin-bottom:16px; }
-.rc-detected-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
-.rc-detected-label { font-size:12px; color:var(--muted); font-weight:600; }
-.rc-detected-cat { font-size:13px; font-weight:700; color:var(--purple); }
-.rc-detected-conf { font-size:11px; padding:2px 8px; border-radius:10px; font-weight:600; }
-.rc-detected-conf.high { background:var(--green-lt); color:var(--green); }
-.rc-detected-conf.medium { background:#fef3c7; color:#92400e; }
-.rc-detected-conf.low { background:#fee2e2; color:var(--red); }
-.rc-override { display:flex; align-items:center; gap:8px; }
-.rc-select { padding:5px 10px; border:1px solid var(--node-border); border-radius:6px; font-size:12px; font-family:inherit; color:var(--text); background:#fff; cursor:pointer; }
-.rc-output-label { font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px; }
-.rc-output-wrap { position:relative; }
-.rc-output { width:100%; border:1px solid var(--node-border); border-radius:10px; padding:16px 14px; padding-right:70px; font-size:14px; font-family:inherit; line-height:1.7; resize:vertical; color:var(--text); background:var(--bg); }
-.rc-output:focus { outline:none; border-color:var(--purple); box-shadow:0 0 0 3px rgba(124,58,237,0.1); }
-.rc-copy-btn { position:absolute; top:10px; right:10px; background:var(--purple); color:#fff; border:none; padding:6px 16px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; }
-.rc-copy-btn:hover { background:#6d28d9; }
-.rc-copy-btn.done { background:var(--green); }
-.rc-tip-row { margin-top:12px; display:flex; gap:8px; align-items:flex-start; padding:10px 14px; border-radius:8px; background:#dbeafe; color:#1e40af; font-size:12px; line-height:1.5; }
-.rc-tip-row:empty { display:none; }
-
-@media(max-width:700px) {
-  .pb-rules-grid { grid-template-columns:1fr; }
-  .pb-metrics { grid-template-columns:1fr 1fr; }
-  .rc-controls { flex-direction:column; }
-}
-</style>
-
-<div class="pb-divider"></div>
-
-<div class="pb-section">
-  <h2>Response Playbook</h2>
-  <p class="pb-subtitle">Research-backed scripts for every reply type. Pause all automation the moment someone replies — switch to manual from here.</p>
-
-  <!-- ── Golden Rules ── -->
-  <div class="pb-rules">
-    <h3>Golden Rules</h3>
-    <div class="pb-rules-grid">
-      <div class="pb-rule">
-        <div class="pb-rule-icon speed">⚡</div>
-        <div class="pb-rule-text">
-          <strong>Reply within 5 minutes</strong>
-          <span>Leads contacted within 5 min are 21x more likely to qualify. 78% of buyers go with the first responder. Set mobile notifications for Dripify Smart Inbox + email.</span>
-        </div>
-      </div>
-      <div class="pb-rule">
-        <div class="pb-rule-icon pause">⏸️</div>
-        <div class="pb-rule-text">
-          <strong>Pause all automation</strong>
-          <span>The moment someone replies, Dripify pauses their sequence. Never re-add them. Switch to 100% manual, human conversation from this point.</span>
-        </div>
-      </div>
-      <div class="pb-rule">
-        <div class="pb-rule-icon tone">💬</div>
-        <div class="pb-rule-text">
-          <strong>One CTA per message</strong>
-          <span>Keep replies under 100 words on LinkedIn. Match the prospect's energy. Sell the meeting, not the service. Never close on the first reply.</span>
-        </div>
-      </div>
-      <div class="pb-rule">
-        <div class="pb-rule-icon track">📊</div>
-        <div class="pb-rule-text">
-          <strong>Track 3 metrics</strong>
-          <span>Positive reply rate (target: 40–60% of all replies). Meeting conversion (target: 40%+ of positive replies). Cost per meeting booked.</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── Benchmark Metrics ── -->
-  <div class="pb-metrics">
-    <div class="pb-metric">
-      <div class="pb-metric-val">21x</div>
-      <div class="pb-metric-label">More likely to qualify<br>(reply within 5 min vs 30 min)</div>
-    </div>
-    <div class="pb-metric">
-      <div class="pb-metric-val">40–60%</div>
-      <div class="pb-metric-label">Target positive reply rate<br>(of all replies received)</div>
-    </div>
-    <div class="pb-metric">
-      <div class="pb-metric-val">50–70%</div>
-      <div class="pb-metric-label">Of responses come from<br>follow-ups, not first messages</div>
-    </div>
-    <div class="pb-metric">
-      <div class="pb-metric-val">62%</div>
-      <div class="pb-metric-label">Conversion rate using<br>Feel-Felt-Found framework</div>
-    </div>
-  </div>
-
-  <!-- ── Category Tabs ── -->
-  <div class="pb-cat-tabs" id="pbCatTabs">
-    <button class="pb-cat-tab on" onclick="showCat('positive',this)"><span class="cat-dot cat-green"></span>Positive Interest</button>
-    <button class="pb-cat-tab" onclick="showCat('curious',this)"><span class="cat-dot cat-blue"></span>Curious / Questions</button>
-    <button class="pb-cat-tab" onclick="showCat('pricing',this)"><span class="cat-dot cat-blue"></span>Pricing Question</button>
-    <button class="pb-cat-tab" onclick="showCat('sendinfo',this)"><span class="cat-dot cat-amber"></span>"Send Me Info"</button>
-    <button class="pb-cat-tab" onclick="showCat('referral',this)"><span class="cat-dot cat-purple"></span>Referral</button>
-    <button class="pb-cat-tab" onclick="showCat('existing',this)"><span class="cat-dot cat-amber"></span>Already Have a Designer</button>
-    <button class="pb-cat-tab" onclick="showCat('notnow',this)"><span class="cat-dot cat-amber"></span>"Not Right Now"</button>
-    <button class="pb-cat-tab" onclick="showCat('notnow_tl',this)"><span class="cat-dot cat-amber"></span>"Not Now" + Timeline</button>
-    <button class="pb-cat-tab" onclick="showCat('inhouse',this)"><span class="cat-dot cat-amber"></span>Handle It In-House</button>
-    <button class="pb-cat-tab" onclick="showCat('triedbefore',this)"><span class="cat-dot cat-amber"></span>Tried This Before</button>
-    <button class="pb-cat-tab" onclick="showCat('negative',this)"><span class="cat-dot cat-red"></span>Not Interested</button>
-    <button class="pb-cat-tab" onclick="showCat('hostile',this)"><span class="cat-dot cat-red"></span>Angry / Hostile</button>
-    <button class="pb-cat-tab" onclick="showCat('ooo',this)"><span class="cat-dot cat-gray"></span>Out of Office</button>
-  </div>
-
-  <!-- ══════════ CATEGORY CARDS ══════════ -->
-  <div id="pbCards">
-
-    <!-- ── 1. Positive Interest ── -->
-    <div class="pb-card show" data-cat="positive">
-      <div class="pb-card-hdr">
-        <h3>Positive Interest — Book the Call</h3>
-        <span class="pb-badge badge-green">High Priority</span>
-        <span class="pb-badge badge-green">Reply &lt; 5 min</span>
-        <div class="pb-card-meta">They said: "Sure, let's chat" / "Tell me more" / "Sounds interesting" / "I'd be open to a call"<br>Goal: Get them on the calendar immediately. Don't pitch — book.</div>
-      </div>
-      <div class="pb-scripts">
-        <div class="pb-sender-tog">
-          <button class="pb-sbtn on" onclick="setPbSender('positive','aj',this)">AJ</button>
-          <button class="pb-sbtn" onclick="setPbSender('positive','nathan',this)">Nathan</button>
-        </div>
-        <div class="pb-script-label">LinkedIn / DM Reply</div>
-        <div class="pb-script-box" data-cat="positive" data-variant="aj" data-channel="li">Love to hear it %%first_name%% — let's make it easy. Here's a link to grab 15 minutes, I'll walk you through exactly how it works for %%company%%:
-
-https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation
-
-If none of those times work, just tell me what suits and I'll make it happen.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-box" data-cat="positive" data-variant="nathan" data-channel="li" style="display:none">Great to hear %%first_name%% — let's lock something in. Here's a link to grab 15 minutes and I'll walk you through how it'd work for %%company%%:
-
-https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation
-
-If none of those times suit, just let me know what works and I'll sort it out.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-label">Email Reply</div>
-        <div class="pb-script-box" data-cat="positive" data-variant="aj" data-channel="email">Hi %%first_name%%,
-
-Great — let's make it easy. Here's a link to grab 15 minutes:
-
-https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation
-
-I'll walk you through exactly how it works and we can figure out if it's a fit for %%company%%. If none of those times work, just reply with what suits.
-
-Cheers,
-AJ<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-box" data-cat="positive" data-variant="nathan" data-channel="email" style="display:none">Hi %%first_name%%,
-
-Great to hear — let's lock something in. Here's a link to grab 15 minutes:
-
-https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation
-
-I'll walk you through how it'd work for %%company%% and we can see if it's a good fit. If none of those times suit, just let me know.
-
-Cheers,
-Nathan<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-      </div>
-      <div class="pb-tip warn">
-        <span class="pb-tip-icon">⚠️</span>
-        <div>If they don't book within 24 hours, send a nudge on the OTHER channel (if they replied on LinkedIn, nudge via email, and vice versa). "Hey %%first_name%% — just wanted to make sure my calendar link worked. Here it is again in case: [link]"</div>
-      </div>
-      <div class="pb-followup">
-        <h4>If they go quiet after saying yes</h4>
-        <div class="pb-timeline">
-          <div class="pb-tl-item"><div class="pb-tl-dot">1</div><div class="pb-tl-content"><strong>24 hours</strong> — <span>Nudge on alternate channel with calendar link</span></div></div>
-          <div class="pb-tl-item"><div class="pb-tl-dot">2</div><div class="pb-tl-content"><strong>3 days</strong> — <span>"Still keen to connect %%first_name%%? Happy to work around your schedule — just let me know a time."</span></div></div>
-          <div class="pb-tl-item"><div class="pb-tl-dot">3</div><div class="pb-tl-content"><strong>7 days</strong> — <span>Share a relevant case study or portfolio piece as added value</span></div></div>
-          <div class="pb-tl-item"><div class="pb-tl-dot">4</div><div class="pb-tl-content"><strong>14 days</strong> — <span>Breakup: "No stress if the timing's shifted %%first_name%%. Door's always open — designbees.com.au/pricing-cards"</span></div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── 2. Curious / Questions ── -->
-    <div class="pb-card" data-cat="curious">
-      <div class="pb-card-hdr">
-        <h3>Curious / Asking Questions</h3>
-        <span class="pb-badge badge-blue">Medium-High Priority</span>
-        <span class="pb-badge badge-green">Reply &lt; 5 min</span>
-        <div class="pb-card-meta">They said: "How does it work?" / "What kind of design do you do?" / "Can you do [specific thing]?" / "Tell me more"<br>Goal: Answer their specific question concisely, then bridge to a call. Don't dump your whole pitch.</div>
-      </div>
-      <div class="pb-scripts">
-        <div class="pb-sender-tog">
-          <button class="pb-sbtn on" onclick="setPbSender('curious','aj',this)">AJ</button>
-          <button class="pb-sbtn" onclick="setPbSender('curious','nathan',this)">Nathan</button>
-        </div>
-        <div class="pb-script-label">LinkedIn / DM Reply</div>
-        <div class="pb-script-box" data-cat="curious" data-variant="aj" data-channel="li">Great question — [answer their specific question in 1–2 sentences].
-
-Easiest way to see if it's a fit for %%company%% is a quick 15-min call — I can tailor it to what you actually need: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation
-
-Or if you'd rather look first: designbees.com.au/pricing-cards<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-box" data-cat="curious" data-variant="nathan" data-channel="li" style="display:none">Good question — [answer their specific question in 1–2 sentences].
-
-Happy to jump on a quick 15-min call to walk through the details properly — I can tailor it to %%company%%: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation
-
-Or here's the pricing breakdown if you'd prefer to have a look first: designbees.com.au/pricing-cards<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-      </div>
-      <div class="pb-tip info">
-        <span class="pb-tip-icon">💡</span>
-        <div><strong>Include ONE qualifying question</strong> to move the conversation forward. E.g., "Quick question — are you handling design in-house right now or working with someone?" This keeps the dialogue going if they don't book immediately.</div>
-      </div>
-      <div class="pb-followup">
-        <h4>If they go quiet after asking</h4>
-        <div class="pb-timeline">
-          <div class="pb-tl-item"><div class="pb-tl-dot">1</div><div class="pb-tl-content"><strong>3 days</strong> — <span>"Did that answer your question %%first_name%%? Happy to dig into anything else."</span></div></div>
-          <div class="pb-tl-item"><div class="pb-tl-dot">2</div><div class="pb-tl-content"><strong>7 days</strong> — <span>Share a case study relevant to their question</span></div></div>
-          <div class="pb-tl-item"><div class="pb-tl-dot">3</div><div class="pb-tl-content"><strong>14 days</strong> — <span>Soft breakup message</span></div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── 3. Pricing Question ── -->
-    <div class="pb-card" data-cat="pricing">
-      <div class="pb-card-hdr">
-        <h3>Pricing Question</h3>
-        <span class="pb-badge badge-blue">Medium-High Priority</span>
-        <span class="pb-badge badge-green">Reply &lt; 5 min</span>
-        <div class="pb-card-meta">They said: "How much does it cost?" / "What are your rates?" / "Is there a free trial?"<br>Goal: Give a direct, transparent answer — then reframe around value and book the call.</div>
-      </div>
-      <div class="pb-scripts">
-        <div class="pb-sender-tog">
-          <button class="pb-sbtn on" onclick="setPbSender('pricing','aj',this)">AJ</button>
-          <button class="pb-sbtn" onclick="setPbSender('pricing','nathan',this)">Nathan</button>
-        </div>
-        <div class="pb-script-label">LinkedIn / DM Reply</div>
-        <div class="pb-script-box" data-cat="pricing" data-variant="aj" data-channel="li">Good question — plans start at $545/month for a dedicated designer doing 4 hours a week. Goes up to $2,645/month for higher volume. All plans include unlimited revisions, no lock-in, and a 10-day free trial.
-
-Full breakdown here: designbees.com.au/pricing-cards
-
-Happy to jump on a quick call to figure out which plan makes sense for %%company%%: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-box" data-cat="pricing" data-variant="nathan" data-channel="li" style="display:none">Great question — plans start at $545/month for a dedicated designer doing 4 hours a week, up to $2,645/month for higher volume. Unlimited revisions, no lock-in, and we run a free 10-day trial so you can test it properly.
-
-Here's the full breakdown: designbees.com.au/pricing-cards
-
-Happy to jump on 15 minutes to figure out which plan fits %%company%%: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-      </div>
-      <div class="pb-tip info">
-        <span class="pb-tip-icon">💡</span>
-        <div><strong>If they say "too expensive"</strong> — use Feel-Felt-Found: "Totally fair. A few founders we work with felt the same way — then they mapped out what they were actually spending between Canva Pro, freelancer invoices, and their own time at $X/hr. Most found the flat fee actually saved them money. Happy to walk through it?"</div>
-      </div>
-    </div>
-
-    <!-- ── 4. Send Me Info ── -->
-    <div class="pb-card" data-cat="sendinfo">
-      <div class="pb-card-hdr">
-        <h3>"Send Me Info" — Non-Committal Interest</h3>
-        <span class="pb-badge badge-amber">Medium Priority</span>
-        <span class="pb-badge badge-green">Reply &lt; 5 min</span>
-        <div class="pb-card-meta">They said: "Send me some info" / "Can you email me details?" / "I'll have a look"<br>Goal: Send the info, but include ONE qualifying question to keep the conversation alive. Schedule a follow-up for 3–5 days.</div>
-      </div>
-      <div class="pb-scripts">
-        <div class="pb-sender-tog">
-          <button class="pb-sbtn on" onclick="setPbSender('sendinfo','aj',this)">AJ</button>
-          <button class="pb-sbtn" onclick="setPbSender('sendinfo','nathan',this)">Nathan</button>
-        </div>
-        <div class="pb-script-label">LinkedIn / DM Reply</div>
-        <div class="pb-script-box" data-cat="sendinfo" data-variant="aj" data-channel="li">Sure thing — here's everything in one spot: designbees.com.au/pricing-cards
-
-Quick question before I leave you to it — what's the main thing eating your time on design right now? That way I can point you to the most relevant stuff.
-
-Happy to jump on a quick call too if that's easier: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-box" data-cat="sendinfo" data-variant="nathan" data-channel="li" style="display:none">Of course — here's the full rundown: designbees.com.au/pricing-cards
-
-Quick question — what's the biggest design headache at %%company%% right now? Happy to point you to the most relevant case study.
-
-Or if you'd prefer to chat through it, here's my calendar: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-      </div>
-      <div class="pb-followup">
-        <h4>Follow-up cadence</h4>
-        <div class="pb-timeline">
-          <div class="pb-tl-item"><div class="pb-tl-dot">1</div><div class="pb-tl-content"><strong>3–5 days</strong> — <span>"Hey %%first_name%% — did you get a chance to look? Happy to answer anything."</span></div></div>
-          <div class="pb-tl-item"><div class="pb-tl-dot">2</div><div class="pb-tl-content"><strong>7–10 days</strong> — <span>Share a relevant case study: "Thought this might be useful — [client name] was in a similar spot."</span></div></div>
-          <div class="pb-tl-item"><div class="pb-tl-dot">3</div><div class="pb-tl-content"><strong>14 days</strong> — <span>Soft breakup: "No stress if the timing's off. Door's open."</span></div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── 5. Referral ── -->
-    <div class="pb-card" data-cat="referral">
-      <div class="pb-card-hdr">
-        <h3>Referral — "Talk to Someone Else"</h3>
-        <span class="pb-badge badge-purple">High Value</span>
-        <span class="pb-badge badge-green">Reply &lt; 5 min</span>
-        <div class="pb-card-meta">They said: "You should talk to our marketing manager" / "I'm not the right person, try [name]" / "Let me connect you with [person]"<br>Goal: Thank them warmly, ask for a warm intro, and make it effortless for them.</div>
-      </div>
-      <div class="pb-scripts">
-        <div class="pb-sender-tog">
-          <button class="pb-sbtn on" onclick="setPbSender('referral','aj',this)">AJ</button>
-          <button class="pb-sbtn" onclick="setPbSender('referral','nathan',this)">Nathan</button>
-        </div>
-        <div class="pb-script-label">LinkedIn / DM Reply</div>
-        <div class="pb-script-box" data-cat="referral" data-variant="aj" data-channel="li">Really appreciate that %%first_name%% — would you be open to making a quick intro? Happy to keep it short and low-pressure for them.
-
-If it's easier, I can just mention your name when I reach out directly. Whatever works best.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-box" data-cat="referral" data-variant="nathan" data-channel="li" style="display:none">Appreciate the pointer %%first_name%% — would you be open to a quick intro? I'll keep it brief and easy for them.
-
-Alternatively, happy to reach out directly and mention you pointed me their way. Whatever's easiest on your end.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-      </div>
-      <div class="pb-tip info">
-        <span class="pb-tip-icon">💡</span>
-        <div><strong>When reaching out to the referred person:</strong> "Hi [name] — %%first_name%% at %%company%% suggested I reach out. [Then use the appropriate ICP sequence connection note, personalized to the new contact's role.]" Referral-based outreach converts at 3–5x the rate of cold outreach.</div>
-      </div>
-    </div>
-
-    <!-- ── 6. Already Have a Designer/Agency ── -->
-    <div class="pb-card" data-cat="existing">
-      <div class="pb-card-hdr">
-        <h3>"We Already Have a Designer / Agency"</h3>
-        <span class="pb-badge badge-amber">Objection</span>
-        <span class="pb-badge badge-amber">Reply within 1 hour</span>
-        <div class="pb-card-meta">They said: "We already work with someone" / "We have a designer" / "We just signed with an agency"<br>Goal: Don't compete — complement. Position as overflow capacity, not a replacement. Ask what's working and what isn't.</div>
-      </div>
-      <div class="pb-scripts">
-        <div class="pb-sender-tog">
-          <button class="pb-sbtn on" onclick="setPbSender('existing','aj',this)">AJ</button>
-          <button class="pb-sbtn" onclick="setPbSender('existing','nathan',this)">Nathan</button>
-        </div>
-        <div class="pb-script-label">LinkedIn / DM Reply</div>
-        <div class="pb-script-box" data-cat="existing" data-variant="aj" data-channel="li">Good to hear you've got that covered %%first_name%%. Out of curiosity — are they handling everything, or do you still end up with overflow that takes longer than it should?
-
-A few of the businesses we work with use us alongside their main designer for the stuff that piles up — social content, decks, one-off assets. Flat monthly fee, no contracts, easy to spin up.
-
-No pressure either way — just figured it was worth mentioning.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-box" data-cat="existing" data-variant="nathan" data-channel="li" style="display:none">Good to hear %%first_name%% — always better to have someone in place. Quick question though — are they across everything, or do you find some things still pile up or take longer than they should?
-
-A few of our clients actually use us as a second pair of hands alongside their main designer — for the overflow stuff like social content, pitch decks, one-off assets. Flat monthly fee, no lock-in.
-
-No pressure at all — just thought it might be relevant.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-      </div>
-      <div class="pb-tip warn">
-        <span class="pb-tip-icon">⚠️</span>
-        <div><strong>Never badmouth their current provider.</strong> If they're happy, exit gracefully: "Glad you've got a good setup — if anything changes, you know where to find us." Add to quarterly nurture list.</div>
-      </div>
-    </div>
-
-    <!-- ── 7. Not Right Now (Vague) ── -->
-    <div class="pb-card" data-cat="notnow">
-      <div class="pb-card-hdr">
-        <h3>"Not Right Now" — Vague Timing</h3>
-        <span class="pb-badge badge-amber">Objection</span>
-        <span class="pb-badge badge-amber">Reply within 1 hour</span>
-        <div class="pb-card-meta">They said: "Not the right time" / "Too busy right now" / "Maybe later" / "Check back in a while"<br>Goal: Acknowledge, ask for a specific timeframe, set a calendar reminder. Don't push — plant the seed.</div>
-      </div>
-      <div class="pb-scripts">
-        <div class="pb-sender-tog">
-          <button class="pb-sbtn on" onclick="setPbSender('notnow','aj',this)">AJ</button>
-          <button class="pb-sbtn" onclick="setPbSender('notnow','nathan',this)">Nathan</button>
-        </div>
-        <div class="pb-script-label">LinkedIn / DM Reply</div>
-        <div class="pb-script-box" data-cat="notnow" data-variant="aj" data-channel="li">Totally understand %%first_name%% — timing is everything. Mind if I check back in a couple of months? No pitch, just a quick check-in to see if anything's shifted.
-
-Happy to stay connected in the meantime.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-box" data-cat="notnow" data-variant="nathan" data-channel="li" style="display:none">Makes total sense %%first_name%% — no rush at all. Would it be alright if I circled back in a couple of months? No pitch, just a quick check-in.
-
-Happy to stay connected in the meantime.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-      </div>
-      <div class="pb-tip info">
-        <span class="pb-tip-icon">💡</span>
-        <div><strong>Set a calendar reminder</strong> for 8 weeks out. When you follow up: "Hey %%first_name%% — we chatted back in [month] and you mentioned the timing wasn't quite right. Has anything shifted on the design front at %%company%%?" Add to quarterly nurture list in the meantime.</div>
-      </div>
-    </div>
-
-    <!-- ── 8. Not Now + Timeline ── -->
-    <div class="pb-card" data-cat="notnow_tl">
-      <div class="pb-card-hdr">
-        <h3>"Not Now" — With a Timeline</h3>
-        <span class="pb-badge badge-purple">High Value</span>
-        <span class="pb-badge badge-amber">Reply within 1 hour</span>
-        <div class="pb-card-meta">They said: "Check back in Q3" / "We're launching in June, maybe then" / "After our rebrand" / "Next quarter"<br>Goal: Lock in the follow-up date precisely. This is a warm lead with a buying window — treat it like gold.</div>
-      </div>
-      <div class="pb-scripts">
-        <div class="pb-sender-tog">
-          <button class="pb-sbtn on" onclick="setPbSender('notnow_tl','aj',this)">AJ</button>
-          <button class="pb-sbtn" onclick="setPbSender('notnow_tl','nathan',this)">Nathan</button>
-        </div>
-        <div class="pb-script-label">LinkedIn / DM Reply</div>
-        <div class="pb-script-box" data-cat="notnow_tl" data-variant="aj" data-channel="li">Makes total sense %%first_name%%. I'll set a reminder to drop you a message in [their timeframe]. No pitch — just a check-in to see if the timing's better.
-
-In the meantime, here's our pricing if you want to have it handy: designbees.com.au/pricing-cards
-
-Good luck with [whatever they mentioned — launch, rebrand, etc.].<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-box" data-cat="notnow_tl" data-variant="nathan" data-channel="li" style="display:none">Completely understand %%first_name%% — I'll pop a reminder in for [their timeframe] and check back then. No pressure, just a quick ping.
-
-Here's our pricing in the meantime if it's useful to have: designbees.com.au/pricing-cards
-
-Good luck with [whatever they mentioned].<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-      </div>
-      <div class="pb-tip warn">
-        <span class="pb-tip-icon">⚠️</span>
-        <div><strong>Critical: Set the calendar reminder immediately.</strong> Follow up 1–2 days before their stated timeline (e.g., if they said "Q3", reach out late June). Reference their specific situation: "Hey %%first_name%% — you mentioned %%company%% was looking at [thing] around now. Still relevant?"</div>
-      </div>
-    </div>
-
-    <!-- ── 9. Handle It In-House / Canva ── -->
-    <div class="pb-card" data-cat="inhouse">
-      <div class="pb-card-hdr">
-        <h3>"We Handle It In-House" / "We Use Canva"</h3>
-        <span class="pb-badge badge-amber">Objection</span>
-        <span class="pb-badge badge-amber">Reply within 1 hour</span>
-        <div class="pb-card-meta">They said: "We do it ourselves" / "We use Canva" / "Our marketing person handles design" / "I do it myself"<br>Goal: Empathize (you know they're spending hours on it). Reframe around time cost and quality, not replacement.</div>
-      </div>
-      <div class="pb-scripts">
-        <div class="pb-sender-tog">
-          <button class="pb-sbtn on" onclick="setPbSender('inhouse','aj',this)">AJ</button>
-          <button class="pb-sbtn" onclick="setPbSender('inhouse','nathan',this)">Nathan</button>
-        </div>
-        <div class="pb-script-label">LinkedIn / DM Reply — Founder (doing it themselves)</div>
-        <div class="pb-script-box" data-cat="inhouse" data-variant="aj" data-channel="li">Fair enough %%first_name%% — most founders at your stage are. Canva gets the job done but it eats hours you probably can't afford.
-
-One of the founders we work with was spending 8–10 hours a week on it. Now he just sends a brief and gets designs back same day. $545/month — less than one freelancer invoice.
-
-No pressure at all — just figured it was worth putting on your radar for when the bottleneck hits.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-box" data-cat="inhouse" data-variant="nathan" data-channel="li" style="display:none">That's how most founders at your stage handle it %%first_name%% — totally normal. The question is whether it's the best use of your time.
-
-One of the founders we work with was spending 8–10 hours a week on design. Now he sends a quick brief and gets everything back same day. $545/month, dedicated designer, no contracts.
-
-No pressure — just thought it might be worth knowing about for when the to-do list gets too long.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-label" style="margin-top:8px">LinkedIn / DM Reply — Marketing person handles it</div>
-        <div class="pb-script-box" data-cat="inhouse" data-variant="aj" data-channel="li2">Makes sense — but is design actually in their job description, or is it just one of the things that landed on their plate?
-
-Most marketing managers we talk to are spending 10+ hours a week on design that isn't their core job. A dedicated designer for a flat monthly fee frees them up to focus on what actually moves the needle.
-
-Happy to send through the details if it's relevant.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-box" data-cat="inhouse" data-variant="nathan" data-channel="li2" style="display:none">Fair enough — though I'd bet design isn't really what they were hired to do. Most marketing managers we talk to are spending 10+ hours a week on it — time they could spend on strategy, campaigns, the stuff that actually moves the needle.
-
-A dedicated designer on a flat monthly fee changes that equation pretty quickly. Happy to share how it works if it's ever relevant.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-      </div>
-    </div>
-
-    <!-- ── 10. Tried This Before ── -->
-    <div class="pb-card" data-cat="triedbefore">
-      <div class="pb-card-hdr">
-        <h3>"We Tried Something Like This Before"</h3>
-        <span class="pb-badge badge-amber">Objection</span>
-        <span class="pb-badge badge-amber">Reply within 1 hour</span>
-        <div class="pb-card-meta">They said: "We used Design Pickle / Kimp / Penji" / "We tried unlimited design and it didn't work" / "Had a bad experience with outsourced design"<br>Goal: Differentiate. Acknowledge the pain. Use Thomas @ Prospect House as social proof — he had the same experience.</div>
-      </div>
-      <div class="pb-scripts">
-        <div class="pb-sender-tog">
-          <button class="pb-sbtn on" onclick="setPbSender('triedbefore','aj',this)">AJ</button>
-          <button class="pb-sbtn" onclick="setPbSender('triedbefore','nathan',this)">Nathan</button>
-        </div>
-        <div class="pb-script-label">LinkedIn / DM Reply</div>
-        <div class="pb-script-box" data-cat="triedbefore" data-variant="aj" data-channel="li">I hear that a lot actually — Design Pickle and Kimp come up often. The main difference our clients mention is having a dedicated designer who actually learns your brand, so you stop re-briefing from scratch every time.
-
-Thomas at Prospect House had exactly that experience — he'd been through both before finding us. Now he's got one designer across 4 client brands. His words: "Cannot recommend Design Bees enough."
-
-Happy to share his case study if you'd like to see the details. No pressure either way.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-box" data-cat="triedbefore" data-variant="nathan" data-channel="li" style="display:none">Totally understand — and honestly, that's a fair concern. The big difference comes down to a dedicated designer who actually learns your brand vs. a revolving door of people you have to re-brief every time.
-
-Thomas at Prospect House was in the exact same spot — he'd tried Design Pickle and Kimp before landing with us. Now he's got one designer across 4 client brands. His words: "Cannot recommend Design Bees enough."
-
-Happy to send through his case study if it'd help. Zero pressure.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-      </div>
-      <div class="pb-tip info">
-        <span class="pb-tip-icon">💡</span>
-        <div><strong>Key differentiators to emphasize:</strong> Dedicated (not rotating) designer, Australian-managed quality, same-day turnaround, brand consistency across assets, no lock-in contract, and the free 10-day trial to prove it with zero risk.</div>
-      </div>
-    </div>
-
-    <!-- ── 11. Not Interested / Hard No ── -->
-    <div class="pb-card" data-cat="negative">
-      <div class="pb-card-hdr">
-        <h3>Not Interested — Clear Rejection</h3>
-        <span class="pb-badge badge-red">Low Priority</span>
-        <span class="pb-badge badge-gray">Reply within a few hours</span>
-        <div class="pb-card-meta">They said: "Not interested" / "No thanks" / "Please don't contact me again" / "Not for us"<br>Goal: Exit gracefully in 1–2 sentences. Leave the door open. Never argue, never pitch. Immediately suppress from all active sequences.</div>
-      </div>
-      <div class="pb-scripts">
-        <div class="pb-sender-tog">
-          <button class="pb-sbtn on" onclick="setPbSender('negative','aj',this)">AJ</button>
-          <button class="pb-sbtn" onclick="setPbSender('negative','nathan',this)">Nathan</button>
-        </div>
-        <div class="pb-script-label">LinkedIn / DM Reply</div>
-        <div class="pb-script-box" data-cat="negative" data-variant="aj" data-channel="li">Appreciate you letting me know %%first_name%%. No worries at all — wishing you and %%company%% all the best.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-box" data-cat="negative" data-variant="nathan" data-channel="li" style="display:none">Totally understand %%first_name%% — thanks for letting me know. Wishing you and the team all the best.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-      </div>
-      <div class="pb-tip warn">
-        <span class="pb-tip-icon">⚠️</span>
-        <div><strong>Immediately:</strong> Remove from all active Dripify sequences. Add to a "rejected" list so they're excluded from future campaigns. Add to a low-frequency quarterly nurture list (value content only — no sales). 60% of buyers say "no" four times before saying "yes," but re-engagement should come through content, not more outreach.</div>
-      </div>
-    </div>
-
-    <!-- ── 12. Angry / Hostile ── -->
-    <div class="pb-card" data-cat="hostile">
-      <div class="pb-card-hdr">
-        <h3>Angry / Hostile Response</h3>
-        <span class="pb-badge badge-red">Handle with Care</span>
-        <span class="pb-badge badge-gray">Reply within a few hours</span>
-        <div class="pb-card-meta">They said: Rude, aggressive, or threatening language. "Stop spamming me" / profanity / threats to report.<br>Goal: De-escalate with one calm sentence. Confirm removal. Do NOT engage, explain, or defend. Full stop.</div>
-      </div>
-      <div class="pb-scripts">
-        <div class="pb-sender-tog">
-          <button class="pb-sbtn on" onclick="setPbSender('hostile','aj',this)">AJ</button>
-          <button class="pb-sbtn" onclick="setPbSender('hostile','nathan',this)">Nathan</button>
-        </div>
-        <div class="pb-script-label">LinkedIn / DM Reply (same for both)</div>
-        <div class="pb-script-box" data-cat="hostile" data-variant="aj" data-channel="li">Apologies for the inconvenience. I've removed you from our list — you won't hear from us again.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-box" data-cat="hostile" data-variant="nathan" data-channel="li" style="display:none">Apologies for the bother. I've removed you from our list — you won't hear from us again.<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-      </div>
-      <div class="pb-tip warn">
-        <span class="pb-tip-icon">⚠️</span>
-        <div><strong>Never</strong> respond defensively, sarcastically, or emotionally — even if the response is unreasonable. Immediately remove from ALL lists (active + nurture). Do not add to any future campaigns. Screenshot and log if the response contains threats for your records.</div>
-      </div>
-    </div>
-
-    <!-- ── 13. Out of Office ── -->
-    <div class="pb-card" data-cat="ooo">
-      <div class="pb-card-hdr">
-        <h3>Out of Office — Auto-Reply</h3>
-        <span class="pb-badge badge-gray">Low Priority</span>
-        <span class="pb-badge badge-gray">No immediate reply</span>
-        <div class="pb-card-meta">They sent: An automated OOO message with a return date.<br>Goal: Do NOT reply to the auto-reply. Set a calendar reminder for their return date + 1 day, then send a fresh message.</div>
-      </div>
-      <div class="pb-scripts">
-        <div class="pb-sender-tog">
-          <button class="pb-sbtn on" onclick="setPbSender('ooo','aj',this)">AJ</button>
-          <button class="pb-sbtn" onclick="setPbSender('ooo','nathan',this)">Nathan</button>
-        </div>
-        <div class="pb-script-label">Message to send on their return date + 1 day</div>
-        <div class="pb-script-box" data-cat="ooo" data-variant="aj" data-channel="li">Hey %%first_name%% — hope you had a good break. Sent you a message while you were out, thought I'd resurface it now you're back.
-
-[Paste your original message or a shorter version of it]<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-        <div class="pb-script-box" data-cat="ooo" data-variant="nathan" data-channel="li" style="display:none">Hey %%first_name%% — hope you had a good break. I reached out while you were away, just wanted to resurface it now you're back.
-
-[Paste your original message or a shorter version of it]<button class="pb-copy" onclick="pbCopy(this)">Copy</button></div>
-      </div>
-      <div class="pb-tip info">
-        <span class="pb-tip-icon">💡</span>
-        <div><strong>Process:</strong> 1) Note their return date from the OOO. 2) Set a calendar reminder for return date + 1 business day. 3) Do NOT reply to the auto-reply itself. 4) When you follow up, reference your original message but keep it fresh — don't just forward the old one.</div>
-      </div>
-    </div>
-
-  </div><!-- /pbCards -->
-
-  <!-- ── Follow-Up Master Cadence ── -->
-  <div class="pb-rules" style="margin-top:32px;">
-    <h3>Master Follow-Up Cadence — When a Warm Lead Goes Quiet</h3>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Use this for any prospect who showed interest (positive, curious, pricing, send-info) but stopped responding. 50–70% of all responses come from follow-ups — most reps quit after 1–2 attempts.</p>
-    <div style="display:flex;flex-direction:column;gap:0;">
-      <div class="pb-tl-item"><div class="pb-tl-dot">1</div><div class="pb-tl-content"><strong>Nudge 1 — 2–3 business days</strong><br><span>Same channel they replied on. Reference their interest + add new value. "Hey %%first_name%% — just wanted to follow up on our chat. [Add one new piece of value: a relevant case study, stat, or observation about their business.]"</span></div></div>
-      <div class="pb-tl-item"><div class="pb-tl-dot">2</div><div class="pb-tl-content"><strong>Nudge 2 — 3–4 days later</strong><br><span>Switch channels (LinkedIn → email or vice versa). Share a specific case study relevant to their ICP. "Thought this might be useful — [client name] was in a similar spot at %%company%%."</span></div></div>
-      <div class="pb-tl-item"><div class="pb-tl-dot">3</div><div class="pb-tl-content"><strong>Nudge 3 — 5–7 days later</strong><br><span>LinkedIn voice note or phone call. Brief, personal check-in — voice cuts through noise better than text. Keep it under 30 seconds.</span></div></div>
-      <div class="pb-tl-item"><div class="pb-tl-dot">4</div><div class="pb-tl-content"><strong>Breakup — 2 weeks later</strong><br><span>Final message with open door: "Hey %%first_name%% — I don't want to be a pest. If the timing's shifted, totally understand. If design ever becomes a priority at %%company%%, here's where to find us: designbees.com.au/pricing-cards. Wishing you all the best."</span></div></div>
-      <div class="pb-tl-item"><div class="pb-tl-dot" style="background:var(--green-lt);color:var(--green);">∞</div><div class="pb-tl-content"><strong>Nurture — Monthly/Quarterly</strong><br><span>Like and comment on their LinkedIn posts. Share value-based content (not sales). Stay visible without being pushy. This is where long-term deals come from.</span></div></div>
-    </div>
-    <div class="pb-tip warn" style="margin:16px 0 0;">
-      <span class="pb-tip-icon">⚠️</span>
-      <div><strong>Never say:</strong> "Just checking in" / "Did you get my message?" / "I haven't heard back." Always add value — a relevant insight, case study, or observation about their business. Enterprise prospects ghost quickly and punish persistence; SMBs tolerate more follow-ups.</div>
-    </div>
-  </div>
-
-  <!-- ══════════ REPLY COMPOSER ══════════ -->
-  <div class="rc-wrap" id="replyComposer">
-    <h3 class="rc-title">Reply Composer</h3>
-    <p class="rc-subtitle">Paste what the lead said, select your ICP and sender — get a ready-to-send response.</p>
-
-    <div class="rc-form">
-      <!-- Lead's message input -->
-      <div class="rc-field">
-        <label class="rc-label">What did they say?</label>
-        <textarea class="rc-input" id="rcInput" rows="3" placeholder="Paste the lead's reply here..."></textarea>
-      </div>
-
-      <!-- Controls row -->
-      <div class="rc-controls">
-        <div class="rc-field rc-field-sm">
-          <label class="rc-label">ICP</label>
-          <div class="rc-pills" id="rcIcpPills">
-            <button class="rc-pill on" onclick="rcSetIcp('icp1',this)">Marketing Hire</button>
-            <button class="rc-pill" onclick="rcSetIcp('icp2',this)">Founder</button>
-            <button class="rc-pill" onclick="rcSetIcp('icp3',this)">Agency</button>
-          </div>
-        </div>
-        <div class="rc-field rc-field-sm">
-          <label class="rc-label">Sender</label>
-          <div class="rc-pills" id="rcSenderPills">
-            <button class="rc-pill on" onclick="rcSetSender('aj',this)">AJ</button>
-            <button class="rc-pill" onclick="rcSetSender('nathan',this)">Nathan</button>
-          </div>
-        </div>
-        <div class="rc-field rc-field-sm">
-          <label class="rc-label">Channel</label>
-          <div class="rc-pills" id="rcChannelPills">
-            <button class="rc-pill on" onclick="rcSetChannel('linkedin',this)">LinkedIn</button>
-            <button class="rc-pill" onclick="rcSetChannel('email',this)">Email</button>
-          </div>
-        </div>
-      </div>
-
-      <button class="rc-generate" onclick="rcGenerate()">Generate Response</button>
-    </div>
-
-    <!-- Detection result -->
-    <div class="rc-result" id="rcResult" style="display:none;">
-      <div class="rc-detected" id="rcDetected">
-        <div class="rc-detected-row">
-          <span class="rc-detected-label">Detected category:</span>
-          <span class="rc-detected-cat" id="rcCatName"></span>
-          <span class="rc-detected-conf" id="rcConf"></span>
-        </div>
-        <div class="rc-override">
-          <span class="rc-detected-label">Wrong? Override:</span>
-          <select class="rc-select" id="rcOverride" onchange="rcOverrideCategory()">
-            <option value="">— Auto-detected —</option>
-            <option value="positive">Positive Interest</option>
-            <option value="curious">Curious / Questions</option>
-            <option value="pricing">Pricing Question</option>
-            <option value="sendinfo">"Send Me Info"</option>
-            <option value="referral">Referral</option>
-            <option value="existing">Already Have a Designer</option>
-            <option value="notnow">"Not Right Now"</option>
-            <option value="notnow_tl">"Not Now" + Timeline</option>
-            <option value="inhouse">Handle It In-House</option>
-            <option value="triedbefore">Tried This Before</option>
-            <option value="negative">Not Interested</option>
-            <option value="hostile">Angry / Hostile</option>
-            <option value="ooo">Out of Office</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="rc-output-label">Your response <span style="color:var(--muted);font-weight:400;">(edit freely, then copy)</span></div>
-      <div class="rc-output-wrap">
-        <textarea class="rc-output" id="rcOutput" rows="8"></textarea>
-        <button class="rc-copy-btn" id="rcCopyBtn" onclick="rcCopyOutput()">Copy</button>
-      </div>
-
-      <div class="rc-tip-row" id="rcTip"></div>
-    </div>
-  </div>
-
-</div><!-- /pb-section -->
-
-<script>
-// ── Playbook interactivity ──
-function showCat(cat, el) {
-  document.querySelectorAll('.pb-cat-tab').forEach(t => t.classList.remove('on'));
-  el.classList.add('on');
-  document.querySelectorAll('.pb-card').forEach(c => {
-    c.classList.toggle('show', c.dataset.cat === cat);
-  });
+function isStale(card) {
+  if (!card.dateLastActivity) return false;
+  const ageDays = (Date.now() - new Date(card.dateLastActivity).getTime()) / 86400000;
+  return ageDays > staleDays;
 }
 
-function setPbSender(cat, who, el) {
-  // Toggle sender buttons within this card
-  const card = el.closest('.pb-card');
-  card.querySelectorAll('.pb-sbtn').forEach((b, i) => {
-    b.classList.toggle('on', (who === 'aj' && i === 0) || (who === 'nathan' && i === 1));
-  });
-  // Toggle script boxes
-  card.querySelectorAll('.pb-script-box').forEach(box => {
-    if (box.dataset.variant === who) {
-      box.style.display = '';
-    } else {
-      box.style.display = 'none';
-    }
-  });
+function filterCards(cards) {
+  // Client/email exclusions are applied server-side in the Worker proxy —
+  // this only applies the user-visible, per-browser staleness cutoff.
+  return (cards || []).filter(c => !isStale(c));
 }
 
-function pbCopy(btn) {
-  const box = btn.parentElement;
-  // Get text content excluding the button text
-  const clone = box.cloneNode(true);
-  clone.querySelector('.pb-copy').remove();
-  const txt = clone.textContent.trim();
-  navigator.clipboard.writeText(txt).then(() => {
-    btn.textContent = 'Copied!';
-    btn.classList.add('done');
-    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1500);
-  });
-}
-
-// ══════════════════════════════════════════════
-// Reply Composer — keyword detection + templates
-// ══════════════════════════════════════════════
-
-let rcIcp = 'icp1';
-let rcSender = 'aj';
-let rcChannel = 'linkedin';
-let rcDetectedCat = null;
-
-function rcSetIcp(v, el) {
-  rcIcp = v;
-  el.parentElement.querySelectorAll('.rc-pill').forEach(p => p.classList.remove('on'));
-  el.classList.add('on');
-}
-function rcSetSender(v, el) {
-  rcSender = v;
-  el.parentElement.querySelectorAll('.rc-pill').forEach(p => p.classList.remove('on'));
-  el.classList.add('on');
-}
-function rcSetChannel(v, el) {
-  rcChannel = v;
-  el.parentElement.querySelectorAll('.rc-pill').forEach(p => p.classList.remove('on'));
-  el.classList.add('on');
-}
-
-// ── Keyword rules (order = priority) ──
-const RC_RULES = [
-  { cat:'ooo',        name:'Out of Office',             keywords:['out of office','ooo','away from','on leave','on holiday','on vacation','returning','back on','be back','maternity','paternity','annual leave'], conf:'high' },
-  { cat:'hostile',    name:'Angry / Hostile',            keywords:['spam','stop emailing','stop messaging','report','block','f*** off','piss off','scam','annoying','harassment','unsubscribe','get lost','leave me alone'], conf:'high' },
-  { cat:'negative',   name:'Not Interested',             keywords:['not interested','no thanks','no thank you','not for us','pass on this','remove me','don\'t contact','please stop','no need','we\'re good','all set','we\'re all good','hard pass'], conf:'high' },
-  { cat:'referral',   name:'Referral',                   keywords:['talk to','speak to','reach out to','contact our','try our','you should speak','let me connect','I\'ll introduce','cc\'ing','loop in','forward this to','the right person is','better person to talk'], conf:'high' },
-  { cat:'triedbefore',name:'Tried This Before',          keywords:['tried','design pickle','kimp','penji','we used','didn\'t work','bad experience','burned','burnt','before and it','similar service','unlimited design','overseas','offshore','last time'], conf:'medium' },
-  { cat:'existing',   name:'Already Have a Designer',    keywords:['already have','already work with','have a designer','have an agency','current agency','existing designer','covered','sorted','we use','our agency','happy with our','just signed','under contract','in-house designer'], conf:'high' },
-  { cat:'inhouse',    name:'Handle It In-House',         keywords:['in house','in-house','do it ourselves','handle it ourselves','canva','our team does','i do it','myself','internal team','marketing team handles','my assistant','we manage','DIY','do it myself'], conf:'medium' },
-  { cat:'notnow_tl',  name:'"Not Now" + Timeline',       keywords:['next quarter','next month','next year','after','in q1','in q2','in q3','in q4','in january','in february','in march','in april','in may','in june','in july','in august','in september','in october','in november','in december','end of','beginning of','start of','once we','when we launch','after our','mid-year','by the time','in a few months','in a couple of months','after the rebrand','post-launch'], conf:'high' },
-  { cat:'notnow',     name:'"Not Right Now"',            keywords:['not right now','not the right time','bad timing','too busy','maybe later','check back','circle back','not now','come back','down the road','revisit','some other time','another time','not a priority','not yet','not at this stage','in the future'], conf:'high' },
-  { cat:'pricing',    name:'Pricing Question',           keywords:['how much','cost','price','pricing','rates','fee','budget','afford','expensive','cheap','what do you charge','per month','monthly','investment','what\'s the damage','ballpark'], conf:'high' },
-  { cat:'sendinfo',   name:'"Send Me Info"',             keywords:['send me','send info','send details','more info','email me','send through','send over','brochure','one-pager','deck','portfolio','have a look','i\'ll review','i\'ll take a look','let me look','share some'], conf:'medium' },
-  { cat:'positive',   name:'Positive Interest',          keywords:['let\'s chat','let\'s talk','sounds good','sounds great','sounds interesting','i\'m interested','interested','love to','keen','book','schedule','set up a call','jump on a call','happy to chat','open to','let\'s connect','absolutely','sure thing','count me in','sign me up','yes','yeah','yep','definitely','let\'s do it','i\'d love to','when can we','free for a call','sounds like a fit'], conf:'high' },
-  { cat:'curious',    name:'Curious / Questions',        keywords:['how does','what do you','can you','tell me','what kind','what type','explain','how do','what\'s the process','what exactly','more about','how would','what if','do you do','does this include','what\'s included','turnaround','how long','how fast','what about','wondering','curious','question'], conf:'medium' },
-];
-
-// ── ICP-specific context for templates ──
-const RC_CTX = {
-  icp1: {
-    label: 'Marketing Hire',
-    painPoint: 'marketing team buried in Canva and chasing freelancers',
-    priceFrom: '$995/month',
-    persona: 'marketing managers',
-    roleContext: 'marketing teams your size',
-  },
-  icp2: {
-    label: 'Founder',
-    painPoint: 'founders doing their own design in Canva',
-    priceFrom: '$545/month',
-    persona: 'founders',
-    roleContext: 'founders at your stage',
-  },
-  icp3: {
-    label: 'Agency',
-    painPoint: 'agencies hitting a design bottleneck that stops them taking on more clients',
-    priceFrom: '$995/month',
-    persona: 'agencies',
-    roleContext: 'agencies your size',
+async function loadAll(manual) {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spin');
+  try {
+    const [labels, ...cardLists] = await Promise.all([
+      api(`/board/labels`, { fields: 'name,color', limit: 1000 }),
+      ...Object.entries(ALL_LISTS).map(([key, l]) =>
+        api(`/list/${l.id}/cards`, {
+          fields: 'name,due,dueComplete,idLabels,shortUrl,dateLastActivity',
+          members: 'true',
+          member_fields: 'fullName,avatarUrl',
+        }).then(cards => [key, cards])
+      ),
+    ]);
+    labelMap = {};
+    labels.forEach(l => { if (l.name) labelMap[l.id] = l; });
+    populateLabelOptions();
+    cache = Object.fromEntries(cardLists);
+    document.getElementById('refreshInfo').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    render();
+  } catch (e) {
+    document.getElementById('content').innerHTML = `<div class="empty">Couldn't reach the data proxy: ${e.message}. Try refreshing in a minute — if it persists, the proxy may need redeploying.</div>`;
+  } finally {
+    btn.classList.remove('spin');
   }
-};
-
-// ── Response templates per category × sender × channel ──
-const RC_TEMPLATES = {
-  positive: {
-    aj: {
-      linkedin: `Love to hear it %%first_name%% — let's make it easy. Here's a link to grab 15 minutes, I'll walk you through exactly how it works for %%company%%:\n\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nIf none of those times work, just tell me what suits and I'll make it happen.`,
-      email: `Hi %%first_name%%,\n\nGreat — let's make it easy. Here's a link to grab 15 minutes:\n\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nI'll walk you through exactly how it works and we can figure out if it's a fit for %%company%%. If none of those times work, just reply with what suits.\n\nCheers,\nAJ`,
-    },
-    nathan: {
-      linkedin: `Great to hear %%first_name%% — let's lock something in. Here's a link to grab 15 minutes and I'll walk you through how it'd work for %%company%%:\n\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nIf none of those times suit, just let me know what works and I'll sort it out.`,
-      email: `Hi %%first_name%%,\n\nGreat to hear — let's lock something in. Here's a link to grab 15 minutes:\n\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nI'll walk you through how it'd work for %%company%% and we can see if it's a good fit. If none of those times suit, just let me know.\n\nCheers,\nNathan`,
-    }
-  },
-  curious: {
-    aj: {
-      linkedin: `Great question — [answer their specific question in 1–2 sentences].\n\nEasiest way to see if it's a fit for %%company%% is a quick 15-min call — I can tailor it to what you actually need: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nOr if you'd rather look first: designbees.com.au/pricing-cards`,
-      email: `Hi %%first_name%%,\n\nGreat question — [answer their specific question in 1–2 sentences].\n\nEasiest way to see if it's a fit for %%company%% is a quick 15-min call — I can tailor it to what you actually need:\n\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nOr here's our pricing if you'd prefer to look first: https://www.designbees.com.au/pricing-cards\n\nCheers,\nAJ`,
-    },
-    nathan: {
-      linkedin: `Good question — [answer their specific question in 1–2 sentences].\n\nHappy to jump on a quick 15-min call to walk through the details properly — I can tailor it to %%company%%: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nOr here's the pricing breakdown if you'd prefer to have a look first: designbees.com.au/pricing-cards`,
-      email: `Hi %%first_name%%,\n\nGood question — [answer their specific question in 1–2 sentences].\n\nHappy to jump on a quick 15-min call to walk through the details properly:\n\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nOr here's the full pricing breakdown: https://www.designbees.com.au/pricing-cards\n\nCheers,\nNathan`,
-    }
-  },
-  pricing: {
-    aj: {
-      linkedin: (ctx) => `Good question — plans start at ${ctx.priceFrom} for a dedicated designer. Goes up to $2,645/month for higher volume. All plans include unlimited revisions, no lock-in, and a 10-day free trial.\n\nFull breakdown here: designbees.com.au/pricing-cards\n\nHappy to jump on a quick call to figure out which plan makes sense for %%company%%: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation`,
-      email: (ctx) => `Hi %%first_name%%,\n\nGood question — plans start at ${ctx.priceFrom} for a dedicated designer, up to $2,645/month for higher volume. Unlimited revisions, no lock-in, and a 10-day free trial.\n\nFull breakdown: https://www.designbees.com.au/pricing-cards\n\nHappy to jump on a quick call to figure out which plan makes sense for %%company%%:\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nAJ`,
-    },
-    nathan: {
-      linkedin: (ctx) => `Great question — plans start at ${ctx.priceFrom} for a dedicated designer, up to $2,645/month for higher volume. Unlimited revisions, no lock-in, and we run a free 10-day trial so you can test it properly.\n\nHere's the full breakdown: designbees.com.au/pricing-cards\n\nHappy to jump on 15 minutes to figure out which plan fits %%company%%: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation`,
-      email: (ctx) => `Hi %%first_name%%,\n\nGreat question — plans start at ${ctx.priceFrom} for a dedicated designer, up to $2,645/month for higher volume. Unlimited revisions, no lock-in, and a free 10-day trial.\n\nHere's the full breakdown: https://www.designbees.com.au/pricing-cards\n\nHappy to jump on 15 minutes to figure out which plan fits %%company%%:\nhttps://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nNathan`,
-    }
-  },
-  sendinfo: {
-    aj: {
-      linkedin: `Sure thing — here's everything in one spot: designbees.com.au/pricing-cards\n\nQuick question before I leave you to it — what's the main thing eating your time on design right now? That way I can point you to the most relevant stuff.\n\nHappy to jump on a quick call too if that's easier: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation`,
-      email: `Hi %%first_name%%,\n\nSure thing — here's the full rundown:\nhttps://www.designbees.com.au/pricing-cards\n\nQuick question — what's the main thing eating your time on design right now? That way I can point you to the most relevant case study.\n\nOr if a quick call is easier: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nAJ`,
-    },
-    nathan: {
-      linkedin: `Of course — here's the full rundown: designbees.com.au/pricing-cards\n\nQuick question — what's the biggest design headache at %%company%% right now? Happy to point you to the most relevant case study.\n\nOr if you'd prefer to chat through it, here's my calendar: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation`,
-      email: `Hi %%first_name%%,\n\nOf course — here's the full rundown:\nhttps://www.designbees.com.au/pricing-cards\n\nQuick question — what's the biggest design headache at %%company%% right now? Happy to point you to the most relevant info.\n\nOr if a quick chat is easier: https://calendly.com/d/ctmp-tcq-tbf/design-bees-demo-consultation\n\nCheers,\nNathan`,
-    }
-  },
-  referral: {
-    aj: {
-      linkedin: `Really appreciate that %%first_name%% — would you be open to making a quick intro? Happy to keep it short and low-pressure for them.\n\nIf it's easier, I can just mention your name when I reach out directly. Whatever works best.`,
-      email: `Hi %%first_name%%,\n\nReally appreciate the pointer — would you be open to making a quick intro? Happy to keep it short and low-pressure for them.\n\nAlternatively, I can reach out directly and mention you pointed me their way. Whatever's easiest.\n\nCheers,\nAJ`,
-    },
-    nathan: {
-      linkedin: `Appreciate the pointer %%first_name%% — would you be open to a quick intro? I'll keep it brief and easy for them.\n\nAlternatively, happy to reach out directly and mention you pointed me their way. Whatever's easiest on your end.`,
-      email: `Hi %%first_name%%,\n\nAppreciate the pointer — would you be open to a quick intro? I'll keep it brief and easy for them.\n\nAlternatively, I can reach out directly and mention you suggested I get in touch. Whatever suits.\n\nCheers,\nNathan`,
-    }
-  },
-  existing: {
-    aj: {
-      linkedin: (ctx) => `Good to hear you've got that covered %%first_name%%. Out of curiosity — are they handling everything, or do you still end up with overflow that takes longer than it should?\n\nA few of the ${ctx.persona} we work with use us alongside their main designer for the stuff that piles up — social content, decks, one-off assets. Flat monthly fee, no contracts, easy to spin up.\n\nNo pressure either way — just figured it was worth mentioning.`,
-      email: (ctx) => `Hi %%first_name%%,\n\nGood to hear you've got that covered. Out of curiosity — are they handling everything, or do you still end up with overflow that takes longer than it should?\n\nA few of the ${ctx.persona} we work with use us alongside their main designer for the stuff that piles up. Flat monthly fee from ${ctx.priceFrom}, no contracts.\n\nNo pressure — just thought it was worth putting on your radar.\n\nCheers,\nAJ`,
-    },
-    nathan: {
-      linkedin: (ctx) => `Good to hear %%first_name%% — always better to have someone in place. Quick question though — are they across everything, or do you find some things still pile up or take longer than they should?\n\nA few of our clients actually use us as a second pair of hands alongside their main designer — for the overflow stuff like social content, pitch decks, one-off assets. Flat monthly fee, no lock-in.\n\nNo pressure at all — just thought it might be relevant.`,
-      email: (ctx) => `Hi %%first_name%%,\n\nGood to hear you've got someone in place. Quick question — are they across everything, or do some things still pile up?\n\nA few of our clients use us as a second pair of hands alongside their main designer — for overflow like social content, decks, one-off assets. Flat monthly fee from ${ctx.priceFrom}, no lock-in.\n\nNo pressure — just thought it might be worth knowing about.\n\nCheers,\nNathan`,
-    }
-  },
-  notnow: {
-    aj: {
-      linkedin: `Totally understand %%first_name%% — timing is everything. Mind if I check back in a couple of months? No pitch, just a quick check-in to see if anything's shifted.\n\nHappy to stay connected in the meantime.`,
-      email: `Hi %%first_name%%,\n\nTotally understand — timing is everything. Mind if I check back in a couple of months? No pitch, just a quick check-in.\n\nHappy to stay connected in the meantime.\n\nCheers,\nAJ`,
-    },
-    nathan: {
-      linkedin: `Makes total sense %%first_name%% — no rush at all. Would it be alright if I circled back in a couple of months? No pitch, just a quick check-in.\n\nHappy to stay connected in the meantime.`,
-      email: `Hi %%first_name%%,\n\nMakes total sense — no rush at all. Would it be alright if I circled back in a couple of months? No pitch, just a quick check-in.\n\nHappy to stay connected in the meantime.\n\nCheers,\nNathan`,
-    }
-  },
-  notnow_tl: {
-    aj: {
-      linkedin: `Makes total sense %%first_name%%. I'll set a reminder to drop you a message in [their timeframe]. No pitch — just a check-in to see if the timing's better.\n\nIn the meantime, here's our pricing if you want to have it handy: designbees.com.au/pricing-cards\n\nGood luck with [whatever they mentioned].`,
-      email: `Hi %%first_name%%,\n\nMakes total sense. I'll set a reminder to check back in [their timeframe]. No pitch — just a quick ping.\n\nIn the meantime, here's our pricing if it's useful: https://www.designbees.com.au/pricing-cards\n\nGood luck with [whatever they mentioned].\n\nCheers,\nAJ`,
-    },
-    nathan: {
-      linkedin: `Completely understand %%first_name%% — I'll pop a reminder in for [their timeframe] and check back then. No pressure, just a quick ping.\n\nHere's our pricing in the meantime if it's useful to have: designbees.com.au/pricing-cards\n\nGood luck with [whatever they mentioned].`,
-      email: `Hi %%first_name%%,\n\nCompletely understand — I'll pop a reminder in for [their timeframe] and check back then. No pressure.\n\nHere's our pricing in the meantime: https://www.designbees.com.au/pricing-cards\n\nGood luck with [whatever they mentioned].\n\nCheers,\nNathan`,
-    }
-  },
-  inhouse: {
-    aj: {
-      linkedin: (ctx) => `Fair enough %%first_name%% — most ${ctx.persona} at your stage are. Canva gets the job done but it eats hours you probably can't afford.\n\nOne of the ${ctx.persona} we work with was in the same spot — spending hours on it every week. Now they just send briefs and get designs back same day. ${ctx.priceFrom}, dedicated designer, no contracts.\n\nNo pressure at all — just figured it was worth putting on your radar for when the bottleneck hits.`,
-      email: (ctx) => `Hi %%first_name%%,\n\nFair enough — most ${ctx.persona} at your stage are handling it themselves. Canva gets the job done, but it eats hours.\n\nOne of the ${ctx.persona} we work with was in the same spot — now they just send briefs and get designs back same day. ${ctx.priceFrom}, dedicated designer, no contracts.\n\nNo pressure — just figured it was worth knowing about.\n\nCheers,\nAJ`,
-    },
-    nathan: {
-      linkedin: (ctx) => `That's how most ${ctx.persona} at your stage handle it %%first_name%% — totally normal. The question is whether it's the best use of your time.\n\nOne of the ${ctx.persona} we work with was in the same spot — spending hours on it every week. Now they just send briefs and get designs back same day. ${ctx.priceFrom}, dedicated designer, no contracts.\n\nNo pressure — just thought it might be worth knowing about for when the to-do list gets too long.`,
-      email: (ctx) => `Hi %%first_name%%,\n\nThat's how most ${ctx.persona} at your stage handle it — totally normal. The question is whether it's the best use of your time.\n\nOne of the ${ctx.persona} we work with was in the same spot — now they just send briefs and get designs back same day. ${ctx.priceFrom}, dedicated designer, no contracts.\n\nNo pressure — just thought it was worth knowing about.\n\nCheers,\nNathan`,
-    }
-  },
-  triedbefore: {
-    aj: {
-      linkedin: `I hear that a lot actually — Design Pickle and Kimp come up often. The main difference our clients mention is having a dedicated designer who actually learns your brand, so you stop re-briefing from scratch every time.\n\nA few of our clients had the exact same experience before switching. Dedicated designer, same-day turnaround, no re-briefs.\n\nHappy to share a case study if you'd like to see the details. No pressure either way.`,
-      email: `Hi %%first_name%%,\n\nI hear that a lot — Design Pickle and Kimp come up often. The main difference our clients mention is a dedicated designer who actually learns your brand, so you stop re-briefing every time.\n\nA few of our clients had the same experience before switching — dedicated designer, same-day turnaround, brand consistency from day one.\n\nHappy to share a case study if it'd help.\n\nCheers,\nAJ`,
-    },
-    nathan: {
-      linkedin: `Totally understand — and honestly, that's a fair concern. The big difference comes down to a dedicated designer who actually learns your brand vs. a revolving door of people you have to re-brief every time.\n\nA few of our clients were in the exact same spot — tried other services before finding us. Dedicated designer, same-day turnaround, no re-briefs.\n\nHappy to send through a case study if it'd help. Zero pressure.`,
-      email: `Hi %%first_name%%,\n\nTotally understand — that's a fair concern. The big difference is a dedicated designer who learns your brand vs. re-briefing someone new every time.\n\nA few of our clients were in the exact same spot — dedicated designer, same-day turnaround, brand consistency from day one.\n\nHappy to share a case study if it'd help.\n\nCheers,\nNathan`,
-    }
-  },
-  negative: {
-    aj: {
-      linkedin: `Appreciate you letting me know %%first_name%%. No worries at all — wishing you and %%company%% all the best.`,
-      email: `Hi %%first_name%%,\n\nAppreciate you letting me know — no worries at all. Wishing you and %%company%% all the best.\n\nCheers,\nAJ`,
-    },
-    nathan: {
-      linkedin: `Totally understand %%first_name%% — thanks for letting me know. Wishing you and the team all the best.`,
-      email: `Hi %%first_name%%,\n\nTotally understand — thanks for letting me know. Wishing you and the team all the best.\n\nCheers,\nNathan`,
-    }
-  },
-  hostile: {
-    aj: {
-      linkedin: `Apologies for the inconvenience. I've removed you from our list — you won't hear from us again.`,
-      email: `Hi %%first_name%%,\n\nApologies for the inconvenience. I've removed you from our list — you won't hear from us again.\n\nCheers,\nAJ`,
-    },
-    nathan: {
-      linkedin: `Apologies for the bother. I've removed you from our list — you won't hear from us again.`,
-      email: `Hi %%first_name%%,\n\nApologies for the bother. I've removed you from our list — you won't hear from us again.\n\nCheers,\nNathan`,
-    }
-  },
-  ooo: {
-    aj: {
-      linkedin: `Hey %%first_name%% — hope you had a good break. Sent you a message while you were out, thought I'd resurface it now you're back.\n\n[Paste your original message or a shorter version of it]`,
-      email: `Hi %%first_name%%,\n\nHope you had a good break. I reached out while you were away — just wanted to resurface it now you're back.\n\n[Paste your original message or a shorter version of it]\n\nCheers,\nAJ`,
-    },
-    nathan: {
-      linkedin: `Hey %%first_name%% — hope you had a good break. I reached out while you were away, just wanted to resurface it now you're back.\n\n[Paste your original message or a shorter version of it]`,
-      email: `Hi %%first_name%%,\n\nHope you had a good break. I reached out while you were away — thought I'd resurface it now you're back.\n\n[Paste your original message or a shorter version of it]\n\nCheers,\nNathan`,
-    }
-  },
-};
-
-// ── Tips per category ──
-const RC_TIPS = {
-  positive: '⚡ If they don\'t book within 24 hours, nudge on the OTHER channel with the calendar link.',
-  curious: '💡 Include ONE qualifying question to keep the conversation alive if they don\'t book right away.',
-  pricing: '💡 If they say "too expensive" — use Feel-Felt-Found: "A few founders felt the same — then they mapped out what they were spending on Canva + freelancers + their own time."',
-  sendinfo: '💡 Follow up in 3–5 days: "Hey %%first_name%% — did you get a chance to look? Happy to answer anything."',
-  referral: '💡 When reaching out to the referred person, mention who pointed you their way — referral outreach converts at 3–5x cold.',
-  existing: '⚠️ Never badmouth their current provider. If they\'re happy, exit gracefully and add to quarterly nurture.',
-  notnow: '💡 Set a calendar reminder for 8 weeks out. When you follow up, reference the original conversation.',
-  notnow_tl: '⚠️ Set the calendar reminder NOW. Follow up 1–2 days before their stated timeline. Reference their specific situation.',
-  inhouse: '💡 For founders: reframe around time cost. For marketing managers: reframe around "that\'s not what they were hired to do."',
-  triedbefore: '💡 Key differentiators: dedicated (not rotating) designer, Australian-managed, same-day turnaround, brand consistency, free trial.',
-  negative: '⚠️ Immediately remove from all active sequences. Add to quarterly nurture list (value content only, no sales).',
-  hostile: '⚠️ Remove from ALL lists. Do not add to any future campaigns. Screenshot if response contains threats.',
-  ooo: '💡 Don\'t reply to the auto-reply. Set a reminder for their return date + 1 business day, then send a fresh message.',
-};
-
-// ── Category display names ──
-const RC_CAT_NAMES = {
-  positive:'Positive Interest', curious:'Curious / Questions', pricing:'Pricing Question',
-  sendinfo:'"Send Me Info"', referral:'Referral', existing:'Already Have a Designer',
-  notnow:'"Not Right Now"', notnow_tl:'"Not Now" + Timeline', inhouse:'Handle It In-House',
-  triedbefore:'Tried This Before', negative:'Not Interested', hostile:'Angry / Hostile', ooo:'Out of Office',
-};
-
-// ── Detect category from input text ──
-function rcDetect(text) {
-  const lower = text.toLowerCase();
-  let best = null;
-  let bestScore = 0;
-  for (const rule of RC_RULES) {
-    let score = 0;
-    for (const kw of rule.keywords) {
-      if (lower.includes(kw)) score++;
-    }
-    if (score > bestScore) {
-      bestScore = score;
-      best = rule;
-    }
-  }
-  if (!best || bestScore === 0) return { cat:'curious', name:'Curious / Questions', conf:'low' };
-  const conf = bestScore >= 3 ? 'high' : bestScore >= 2 ? 'high' : best.conf;
-  return { cat:best.cat, name:best.name, conf };
 }
 
-// ── Generate response ──
-function rcGenerate() {
-  const input = document.getElementById('rcInput').value.trim();
-  if (!input) {
-    document.getElementById('rcInput').focus();
+function clientChip(card) {
+  const label = (card.idLabels || []).map(id => labelMap[id]).find(Boolean);
+  return label ? `<span class="chip client">${escapeHtml(label.name)}</span>` : '';
+}
+
+function dueChip(card) {
+  if (!card.due) return '';
+  const d = new Date(card.due);
+  const overdue = !card.dueComplete && d < new Date();
+  return `<span class="chip due${overdue ? ' overdue' : ''}">${overdue ? 'Overdue: ' : 'Due '}${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span>`;
+}
+
+function membersHtml(card) {
+  if (!card.members || !card.members.length) return '';
+  return `<div class="card-members">${card.members.map(m => `
+    <span class="member">
+      ${m.avatarUrl ? `<img class="avatar" src="${m.avatarUrl}/30.png" alt="">` : `<span class="avatar">${initials(m.fullName)}</span>`}
+      ${escapeHtml(m.fullName)}
+    </span>`).join('')}</div>`;
+}
+
+function cardHtml(card, statusClass, listLabel) {
+  return `<div class="card status-${statusClass} clickable" onclick="window.open('${card.shortUrl}','_blank','noopener')">
+    <div class="card-title">${escapeHtml(card.name)}</div>
+    <div class="card-meta">
+      ${clientChip(card)}
+      ${listLabel ? `<span class="chip list">${escapeHtml(listLabel)}</span>` : ''}
+      ${dueChip(card)}
+    </div>
+    ${membersHtml(card)}
+  </div>`;
+}
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function section(title, dotColor, cards, statusClass, listLabel) {
+  cards = filterCards(cards);
+  const body = cards.length
+    ? `<div class="grid">${cards.map(c => cardHtml(c, statusClass, listLabel)).join('')}</div>`
+    : `<div class="empty">Nothing here right now.</div>`;
+  return `<div class="section">
+    <div class="section-hdr">
+      <span class="section-dot" style="background:${dotColor}"></span>
+      <h3>${title}</h3>
+      <span class="section-count">${cards.length}</span>
+    </div>
+    ${body}
+  </div>`;
+}
+
+const VIEWS = {
+  working: () => {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Currently being worked on</div>
+       <div class="view-sub">Live from "${LISTS.working.name}" — designers actively on these jobs right now.</div>` +
+      section('In progress', 'var(--green)', cache.working, 'working');
+  },
+  assigned: () => {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Assigned for today</div>
+       <div class="view-sub">Live from "${LISTS.assigned.name}" — queued up for the designer, not yet started.</div>` +
+      section('Assigned, not started', 'var(--amber)', cache.assigned, 'assigned');
+  },
+  combined: () => {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Working + Assigned</div>
+       <div class="view-sub">Everything designers have on their plate today, split by whether it's actively in progress.</div>` +
+      section('🟢 Currently being worked on', 'var(--green)', cache.working, 'working') +
+      section('🟠 Assigned for today, not started', 'var(--amber)', cache.assigned, 'assigned');
+  },
+  review: () => {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Awaiting internal review</div>
+       <div class="view-sub">Live from "${LISTS.review.name}" — with internal reviewers before it goes to the client.</div>` +
+      section('In internal review', 'var(--blue)', cache.review, 'review');
+  },
+  prep: () => {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Prepping / Packaging files</div>
+       <div class="view-sub">Client-approved work being prepared and packaged for delivery.</div>` +
+      section('Prepping files (5.1)', 'var(--purple)', cache.prep51, 'prep', 'Prepping') +
+      section('Packaging files to send (5.2)', 'var(--purple)', cache.prep52, 'prep', 'Packaging');
+  },
+  pushed: () => {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Files pushed to client</div>
+       <div class="view-sub">Live from "${LISTS.pushed.name}" — delivered.</div>` +
+      section('Delivered', 'var(--muted)', cache.pushed, 'pushed');
+  },
+  client: () => {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Awaiting client review</div>
+       <div class="view-sub">Live from "${LISTS.client.name}" — shared with the client, awaiting their approval.</div>` +
+      section('With client', 'var(--red)', cache.client, 'client');
+  },
+};
+
+function populateLabelOptions() {
+  const names = [...new Set(Object.values(labelMap).map(l => l.name).filter(Boolean))].sort();
+  document.getElementById('labelOptions').innerHTML = names.map(n => `<option value="${escapeHtml(n)}">`).join('');
+}
+
+function selectTab(view) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === view));
+}
+
+function onSearchInput(v) {
+  searchQuery = v.trim();
+  document.getElementById('clearSearchBtn').style.display = searchQuery ? 'inline-block' : 'none';
+  // Choosing a client moves you onto the Client View tab, since results span every stage.
+  currentView = 'clientsearch';
+  selectTab('clientsearch');
+  render();
+}
+
+function clearSearch() {
+  searchQuery = '';
+  document.getElementById('clientSelect').value = '';
+  document.getElementById('clearSearchBtn').style.display = 'none';
+  render();
+}
+
+function cardHasLabelMatch(card, query) {
+  const q = query.toLowerCase();
+  return (card.idLabels || []).some(id => {
+    const l = labelMap[id];
+    return l && l.name && l.name.toLowerCase().includes(q);
+  });
+}
+
+function renderSearch() {
+  if (!searchQuery) {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Client View</div>
+       <div class="view-sub">See every job for one client, across all pipeline stages.</div>
+       <div class="empty">Select a client from the dropdown above to search.</div>`;
     return;
   }
 
-  const detected = rcDetect(input);
-  rcDetectedCat = detected.cat;
-  document.getElementById('rcOverride').value = '';
+  const q = searchQuery;
+  const sections = Object.entries(ALL_LISTS).map(([key, l]) => {
+    const matches = filterCards(cache[key]).filter(c => cardHasLabelMatch(c, q));
+    return { key, list: l, matches };
+  }).filter(s => s.matches.length);
 
-  rcShowResult(detected.cat, detected.name, detected.conf);
+  const total = sections.reduce((n, s) => n + s.matches.length, 0);
+  const body = total
+    ? sections.map(s => section(s.list.name, 'var(--purple)', s.matches, 'prep', s.list.name)).join('')
+    : `<div class="empty">No jobs found for "${escapeHtml(q)}" in any active stage.</div>`;
+
+  document.getElementById('content').innerHTML =
+    `<div class="view-title">Client View: "${escapeHtml(q)}"</div>
+     <div class="view-sub">Every job for this client, across all pipeline stages — ${total} found.</div>` +
+    body;
 }
 
-function rcShowResult(cat, name, conf) {
-  const ctx = RC_CTX[rcIcp];
-  const tpl = RC_TEMPLATES[cat]?.[rcSender]?.[rcChannel];
-  if (!tpl) return;
-
-  const response = typeof tpl === 'function' ? tpl(ctx) : tpl;
-
-  document.getElementById('rcCatName').textContent = name;
-  const confEl = document.getElementById('rcConf');
-  confEl.textContent = conf === 'high' ? 'High confidence' : conf === 'medium' ? 'Medium confidence' : 'Low confidence — review category';
-  confEl.className = 'rc-detected-conf ' + conf;
-
-  document.getElementById('rcOutput').value = response;
-  document.getElementById('rcTip').innerHTML = RC_TIPS[cat] ? `<span style="font-size:15px;flex-shrink:0;">${RC_TIPS[cat].charAt(0) === '⚠' ? '⚠️' : '💡'}</span><span>${RC_TIPS[cat].substring(RC_TIPS[cat].indexOf(' ')+1)}</span>` : '';
-
-  document.getElementById('rcResult').style.display = '';
-
-  // Reset copy button
-  const btn = document.getElementById('rcCopyBtn');
-  btn.textContent = 'Copy';
-  btn.classList.remove('done');
-}
-
-function rcOverrideCategory() {
-  const sel = document.getElementById('rcOverride').value;
-  if (!sel) {
-    // Reset to auto-detected
-    if (rcDetectedCat) {
-      const det = RC_RULES.find(r => r.cat === rcDetectedCat);
-      rcShowResult(rcDetectedCat, det ? det.name : RC_CAT_NAMES[rcDetectedCat], 'high');
-    }
-    return;
+function render() {
+  if (currentView === 'clientsearch') {
+    renderSearch();
+  } else {
+    VIEWS[currentView]();
   }
-  rcShowResult(sel, RC_CAT_NAMES[sel], 'high');
 }
 
-function rcCopyOutput() {
-  const txt = document.getElementById('rcOutput').value;
-  const btn = document.getElementById('rcCopyBtn');
-  navigator.clipboard.writeText(txt).then(() => {
-    btn.textContent = 'Copied!';
-    btn.classList.add('done');
-    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1500);
-  });
+function setView(view, btn) {
+  currentView = view;
+  selectTab(view);
+  if (view !== 'clientsearch') {
+    // Leaving Client View clears the search so it doesn't linger on other tabs.
+    searchQuery = '';
+    document.getElementById('clientSelect').value = '';
+    document.getElementById('clearSearchBtn').style.display = 'none';
+  }
+  render();
 }
+
+function boot() {
+  loadStaleDays();
+  loadAll();
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => loadAll(), REFRESH_MS);
+}
+
+boot();
 </script>
-
 </body>
 </html>
