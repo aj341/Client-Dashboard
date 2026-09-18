@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Bees — Production Dashboard</title>
+<style>
+:root {
+  --bg: #faf9fe;
+  --card-bg: #fff;
+  --border: #e8e5f0;
+  --shadow: 0 1px 4px rgba(0,0,0,0.06);
+  --text: #1a1a2e;
+  --muted: #6b6b80;
+  --purple: #7c3aed;
+  --purple-lt: #f0e7ff;
+  --green: #16a34a;
+  --green-lt: #dcfce7;
+  --amber: #d97706;
+  --amber-lt: #fef3c7;
+  --blue: #2563eb;
+  --blue-lt: #dbeafe;
+  --red: #dc2626;
+  --gray-lt: #f3f4f6;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:var(--text); }
+
+.hdr { background:#fff; border-bottom:1px solid var(--border); padding:14px 24px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; position:sticky; top:0; z-index:50; }
+.hdr h1 { font-size:18px; color:var(--purple); font-weight:700; white-space:nowrap; }
+.tabs { display:flex; gap:4px; flex-wrap:wrap; }
+.tab { padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:#fff; color:var(--muted); cursor:pointer; font-size:12.5px; font-weight:600; transition:all .15s; white-space:nowrap; }
+.tab:hover { background:var(--purple-lt); }
+.tab.on { background:var(--purple); color:#fff; border-color:var(--purple); }
+.hdr-right { margin-left:auto; display:flex; align-items:center; gap:12px; }
+.refresh-info { font-size:12px; color:var(--muted); white-space:nowrap; }
+.refresh-btn { padding:7px 14px; border-radius:8px; border:1px solid var(--border); background:#fff; color:var(--purple); cursor:pointer; font-size:12.5px; font-weight:600; }
+.refresh-btn:hover { background:var(--purple-lt); }
+.refresh-btn.spin { opacity:0.6; pointer-events:none; }
+
+.setup { max-width:520px; margin:80px auto; background:#fff; border:1px solid var(--border); border-radius:14px; padding:32px; box-shadow:var(--shadow); }
+.setup h2 { color:var(--purple); font-size:18px; margin-bottom:6px; }
+.setup p { color:var(--muted); font-size:13px; margin-bottom:18px; line-height:1.5; }
+.setup label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:4px; margin-top:14px; }
+.setup input { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:8px; font-size:13px; }
+.setup button { margin-top:20px; width:100%; padding:11px; border-radius:8px; border:none; background:var(--purple); color:#fff; font-size:13.5px; font-weight:700; cursor:pointer; }
+.setup button:hover { background:#6d28d9; }
+.setup .err { color:var(--red); font-size:12.5px; margin-top:10px; display:none; }
+.setup .note { font-size:11.5px; color:var(--muted); margin-top:16px; line-height:1.5; }
+
+.wrap { padding:20px 24px 60px; max-width:1400px; margin:0 auto; }
+.view-title { font-size:15px; font-weight:700; margin-bottom:2px; }
+.view-sub { font-size:12.5px; color:var(--muted); margin-bottom:16px; }
+.loading { text-align:center; padding:60px; color:var(--muted); font-size:13px; }
+.empty { text-align:center; padding:40px; color:var(--muted); font-size:13px; background:#fff; border:1px dashed var(--border); border-radius:10px; }
+
+.section { margin-bottom:28px; }
+.section-hdr { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.section-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.section-hdr h3 { font-size:13.5px; font-weight:700; }
+.section-count { font-size:12px; color:var(--muted); background:var(--gray-lt); padding:2px 8px; border-radius:10px; }
+
+.grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:12px; }
+
+.card { background:var(--card-bg); border:1px solid var(--border); border-radius:10px; padding:14px 16px; box-shadow:var(--shadow); position:relative; }
+.card.status-working { border-left:4px solid var(--green); }
+.card.status-assigned { border-left:4px solid var(--amber); }
+.card.status-review { border-left:4px solid var(--blue); }
+.card.status-prep { border-left:4px solid var(--purple); }
+.card.status-pushed { border-left:4px solid var(--muted); }
+.card.status-client { border-left:4px solid var(--red); }
+.card-title { font-size:13.5px; font-weight:600; margin-bottom:8px; line-height:1.35; }
+.card-title a { color:var(--text); text-decoration:none; }
+.card-title a:hover { color:var(--purple); }
+.card-meta { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.chip { font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; }
+.chip.client { background:var(--purple-lt); color:var(--purple); }
+.chip.list { background:var(--gray-lt); color:var(--muted); }
+.chip.due { background:var(--amber-lt); color:var(--amber); }
+.chip.due.overdue { background:#fee2e2; color:var(--red); }
+.card-members { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+.member { display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--muted); background:var(--gray-lt); padding:3px 8px 3px 3px; border-radius:20px; }
+.avatar { width:18px; height:18px; border-radius:50%; background:var(--purple-lt); color:var(--purple); font-size:9px; font-weight:700; display:flex; align-items:center; justify-content:center; object-fit:cover; }
+
+@media(max-width:700px) {
+  .hdr { flex-direction:column; align-items:flex-start; }
+  .hdr-right { margin-left:0; width:100%; justify-content:space-between; }
+  .grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<div id="setupScreen" class="setup" style="display:none">
+  <h2>Connect your Trello board</h2>
+  <p>Credentials are stored only in this browser's local storage — they are never sent anywhere except directly to Trello's API.</p>
+  <label>API Key</label>
+  <input id="inKey" placeholder="Trello API key (trello.com/app-key)">
+  <label>Token</label>
+  <input id="inToken" placeholder="Trello token">
+  <label>Board ID or short link</label>
+  <input id="inBoard" placeholder="e.g. x4btPZ3f" value="x4btPZ3f">
+  <button onclick="saveCreds()">Connect</button>
+  <div class="err" id="setupErr"></div>
+  <div class="note">Generate a key + read-only token at trello.com/app-key while logged in as an account with access to the board.</div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="hdr">
+    <h1>Design Bees — Production</h1>
+    <div class="tabs">
+      <button class="tab on" data-view="working" onclick="setView('working',this)">1 · Being Worked On</button>
+      <button class="tab" data-view="assigned" onclick="setView('assigned',this)">2 · Assigned Today</button>
+      <button class="tab" data-view="combined" onclick="setView('combined',this)">3 · Working + Assigned</button>
+      <button class="tab" data-view="review" onclick="setView('review',this)">4 · Internal Review</button>
+      <button class="tab" data-view="prep" onclick="setView('prep',this)">5 · Prepping/Packaging</button>
+      <button class="tab" data-view="pushed" onclick="setView('pushed',this)">6 · Files Pushed</button>
+      <button class="tab" data-view="client" onclick="setView('client',this)">7 · Awaiting Client Review</button>
+    </div>
+    <div class="hdr-right">
+      <span class="refresh-info" id="refreshInfo">—</span>
+      <button class="refresh-btn" id="refreshBtn" onclick="loadAll(true)">↻ Refresh</button>
+      <button class="refresh-btn" onclick="disconnect()" title="Clear saved credentials">Disconnect</button>
+    </div>
+  </div>
+  <div class="wrap" id="content">
+    <div class="loading">Loading board data…</div>
+  </div>
+</div>
+
+<script>
+const LISTS = {
+  working:  { id: '6767eb93ad96bd8a9c785242', name: '2.2 - Being Designed' },
+  assigned: { id: '65694d3b54a5be08d28f529b', name: 'STAGE 2: With Designer' },
+  review:   { id: '656d96513d2851c6d5458391', name: '3 - Internal Check' },
+  client:   { id: '65694d3b545bb7f8813c32ef', name: 'STAGE 4: Client review' },
+  prep51:   { id: '6767eba73e27b8009ef10f25', name: 'Stage 5.1 Prepping Files' },
+  prep52:   { id: '65f2b493a2a6fee06c4c9e78', name: '5.2 - Packaging Files to send' },
+  pushed:   { id: '65a4ae916bbe11ac77be2ed3', name: 'STAGE 6: Files Pushed' },
+};
+
+const REFRESH_MS = 60000;
+let creds = null;
+let currentView = 'working';
+let cache = {};
+let labelMap = {};
+let refreshTimer = null;
+
+function loadCreds() {
+  try {
+    const raw = localStorage.getItem('trelloDashCreds');
+    if (raw) creds = JSON.parse(raw);
+  } catch (e) {}
+}
+
+function saveCreds() {
+  const key = document.getElementById('inKey').value.trim();
+  const token = document.getElementById('inToken').value.trim();
+  const board = document.getElementById('inBoard').value.trim();
+  const errEl = document.getElementById('setupErr');
+  if (!key || !token || !board) {
+    errEl.textContent = 'All three fields are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+  creds = { key, token, board };
+  localStorage.setItem('trelloDashCreds', JSON.stringify(creds));
+  boot();
+}
+
+function disconnect() {
+  localStorage.removeItem('trelloDashCreds');
+  creds = null;
+  clearInterval(refreshTimer);
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('setupScreen').style.display = 'block';
+}
+
+function api(path, params) {
+  const url = new URL(`https://api.trello.com/1${path}`);
+  url.searchParams.set('key', creds.key);
+  url.searchParams.set('token', creds.token);
+  Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
+  return fetch(url).then(r => {
+    if (!r.ok) throw new Error(`Trello API ${r.status}`);
+    return r.json();
+  });
+}
+
+function initials(name) {
+  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+}
+
+async function loadAll(manual) {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spin');
+  try {
+    const [labels, ...cardLists] = await Promise.all([
+      api(`/boards/${creds.board}/labels`, { fields: 'name,color', limit: 1000 }),
+      ...Object.entries(LISTS).map(([key, l]) =>
+        api(`/lists/${l.id}/cards`, {
+          fields: 'name,due,dueComplete,idLabels,shortUrl,dateLastActivity',
+          members: 'true',
+          member_fields: 'fullName,avatarUrl',
+        }).then(cards => [key, cards])
+      ),
+    ]);
+    labelMap = {};
+    labels.forEach(l => { if (l.name) labelMap[l.id] = l; });
+    cache = Object.fromEntries(cardLists);
+    document.getElementById('refreshInfo').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    render();
+  } catch (e) {
+    document.getElementById('content').innerHTML = `<div class="empty">Couldn't reach Trello: ${e.message}. Check your API key/token haven't expired, then Disconnect and reconnect.</div>`;
+  } finally {
+    btn.classList.remove('spin');
+  }
+}
+
+function clientChip(card) {
+  const label = (card.idLabels || []).map(id => labelMap[id]).find(Boolean);
+  return label ? `<span class="chip client">${escapeHtml(label.name)}</span>` : '';
+}
+
+function dueChip(card) {
+  if (!card.due) return '';
+  const d = new Date(card.due);
+  const overdue = !card.dueComplete && d < new Date();
+  return `<span class="chip due${overdue ? ' overdue' : ''}">${overdue ? 'Overdue: ' : 'Due '}${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span>`;
+}
+
+function membersHtml(card) {
+  if (!card.members || !card.members.length) return '';
+  return `<div class="card-members">${card.members.map(m => `
+    <span class="member">
+      ${m.avatarUrl ? `<img class="avatar" src="${m.avatarUrl}/30.png" alt="">` : `<span class="avatar">${initials(m.fullName)}</span>`}
+      ${escapeHtml(m.fullName)}
+    </span>`).join('')}</div>`;
+}
+
+function cardHtml(card, statusClass, listLabel) {
+  return `<div class="card status-${statusClass}">
+    <div class="card-title"><a href="${card.shortUrl}" target="_blank" rel="noopener">${escapeHtml(card.name)}</a></div>
+    <div class="card-meta">
+      ${clientChip(card)}
+      ${listLabel ? `<span class="chip list">${escapeHtml(listLabel)}</span>` : ''}
+      ${dueChip(card)}
+    </div>
+    ${membersHtml(card)}
+  </div>`;
+}
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function section(title, dotColor, cards, statusClass, listLabel) {
+  cards = cards || [];
+  const body = cards.length
+    ? `<div class="grid">${cards.map(c => cardHtml(c, statusClass, listLabel)).join('')}</div>`
+    : `<div class="empty">Nothing here right now.</div>`;
+  return `<div class="section">
+    <div class="section-hdr">
+      <span class="section-dot" style="background:${dotColor}"></span>
+      <h3>${title}</h3>
+      <span class="section-count">${cards.length}</span>
+    </div>
+    ${body}
+  </div>`;
+}
+
+const VIEWS = {
+  working: () => {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Currently being worked on</div>
+       <div class="view-sub">Live from "${LISTS.working.name}" — designers actively on these jobs right now.</div>` +
+      section('In progress', 'var(--green)', cache.working, 'working');
+  },
+  assigned: () => {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Assigned for today</div>
+       <div class="view-sub">Live from "${LISTS.assigned.name}" — queued up for the designer, not yet started.</div>` +
+      section('Assigned, not started', 'var(--amber)', cache.assigned, 'assigned');
+  },
+  combined: () => {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Working + Assigned</div>
+       <div class="view-sub">Everything designers have on their plate today, split by whether it's actively in progress.</div>` +
+      section('🟢 Currently being worked on', 'var(--green)', cache.working, 'working') +
+      section('🟠 Assigned for today, not started', 'var(--amber)', cache.assigned, 'assigned');
+  },
+  review: () => {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Awaiting internal review</div>
+       <div class="view-sub">Live from "${LISTS.review.name}" — with internal reviewers before it goes to the client.</div>` +
+      section('In internal review', 'var(--blue)', cache.review, 'review');
+  },
+  prep: () => {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Prepping / Packaging files</div>
+       <div class="view-sub">Client-approved work being prepared and packaged for delivery.</div>` +
+      section('Prepping files (5.1)', 'var(--purple)', cache.prep51, 'prep', 'Prepping') +
+      section('Packaging files to send (5.2)', 'var(--purple)', cache.prep52, 'prep', 'Packaging');
+  },
+  pushed: () => {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Files pushed to client</div>
+       <div class="view-sub">Live from "${LISTS.pushed.name}" — delivered.</div>` +
+      section('Delivered', 'var(--muted)', cache.pushed, 'pushed');
+  },
+  client: () => {
+    document.getElementById('content').innerHTML =
+      `<div class="view-title">Awaiting client review</div>
+       <div class="view-sub">Live from "${LISTS.client.name}" — shared with the client, awaiting their approval.</div>` +
+      section('With client', 'var(--red)', cache.client, 'client');
+  },
+};
+
+function render() {
+  VIEWS[currentView]();
+}
+
+function setView(view, btn) {
+  currentView = view;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  btn.classList.add('on');
+  render();
+}
+
+function boot() {
+  if (!creds) {
+    document.getElementById('setupScreen').style.display = 'block';
+    document.getElementById('app').style.display = 'none';
+    return;
+  }
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadAll();
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => loadAll(), REFRESH_MS);
+}
+
+loadCreds();
+boot();
+</script>
+</body>
+</html>
